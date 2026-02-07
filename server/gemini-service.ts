@@ -84,13 +84,17 @@ export interface GeminiAnalysis {
   riskSignals: string[];
 }
 
-export async function analyzeStockWithGemini(stockData: StockDataForAI): Promise<GeminiAnalysis | null> {
+export async function analyzeStockWithGemini(stockData: StockDataForAI, skipCache: boolean = false): Promise<GeminiAnalysis | null> {
   try {
-    // Check cache first (24 hour cache)
-    const cached = await getCached<GeminiAnalysis>(`gemini_analysis_${stockData.symbol}`);
-    if (cached) {
-      console.log(`Using cached Gemini analysis for ${stockData.symbol}`);
-      return cached;
+    // Check cache first (24 hour cache) unless refresh requested
+    if (!skipCache) {
+      const cached = await getCached<GeminiAnalysis>(`gemini_analysis_${stockData.symbol}`);
+      if (cached) {
+        console.log(`Using cached Gemini analysis for ${stockData.symbol}`);
+        return cached;
+      }
+    } else {
+      console.log(`Skipping cache for ${stockData.symbol} (refresh requested)`);
     }
 
     if (!genAI || !GEMINI_API_KEY) {

@@ -785,7 +785,8 @@ async function fetchStockFinancials(symbol: string): Promise<StockFinancials & {
 async function calculateAnalysis(
   symbol: string,
   price: StockPrice,
-  financials: StockFinancials & { dividendYield?: number | null }
+  financials: StockFinancials & { dividendYield?: number | null },
+  refresh: boolean = false
 ): Promise<StockAnalysis> {
   const currentPrice = price.price;
   const eps = financials.eps;
@@ -845,8 +846,8 @@ async function calculateAnalysis(
   };
 
   // Try Gemini AI analysis first
-  console.log(`Attempting Gemini AI analysis for ${symbol}...`);
-  const geminiAnalysis = await analyzeStockWithGemini(stockDataForAI);
+  console.log(`Attempting Gemini AI analysis for ${symbol}...${refresh ? ' (refresh requested)' : ''}`);
+  const geminiAnalysis = await analyzeStockWithGemini(stockDataForAI, refresh);
 
   if (geminiAnalysis) {
     console.log(`Using Gemini AI analysis for ${symbol}: ${geminiAnalysis.recommendation}`);
@@ -975,6 +976,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analysis/:symbol", async (req, res) => {
     const { symbol } = req.params;
+    const refresh = req.query.refresh === "true";
 
     try {
       const [priceData, financials] = await Promise.all([
@@ -982,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fetchStockFinancials(symbol.toUpperCase()),
       ]);
 
-      const analysis = await calculateAnalysis(symbol.toUpperCase(), priceData, financials);
+      const analysis = await calculateAnalysis(symbol.toUpperCase(), priceData, financials, refresh);
       res.json(analysis);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analysis" });
