@@ -1046,7 +1046,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const recommendation = await deployCapitalWithGemini(data);
+      // Fetch real-time prices for major EGX stocks so Gemini uses actual market data
+      const majorSymbols = Object.values(EGX_COMPANY_SYMBOL_MAP);
+      // Also include portfolio symbols
+      const portfolioSymbols = data.portfolio.holdings.map(h => h.symbol);
+      const allSymbols = [...new Set([...majorSymbols, ...portfolioSymbols])];
+
+      const marketPrices: Record<string, number> = {};
+      await Promise.all(
+        allSymbols.map(async (symbol) => {
+          try {
+            const priceData = await fetchStockPrice(symbol);
+            if (priceData.price) {
+              marketPrices[symbol] = priceData.price;
+            }
+          } catch {}
+        })
+      );
+
+      const recommendation = await deployCapitalWithGemini(data, marketPrices);
       if (recommendation) {
         res.json(recommendation);
       } else {

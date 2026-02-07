@@ -489,7 +489,7 @@ export interface DeployCapitalResult {
   riskNote: string;
 }
 
-export async function deployCapitalWithGemini(data: DeployCapitalRequest): Promise<DeployCapitalResult | null> {
+export async function deployCapitalWithGemini(data: DeployCapitalRequest, marketPrices?: Record<string, number>): Promise<DeployCapitalResult | null> {
   if (!genAI || !GEMINI_API_KEY) {
     console.warn("Gemini API key not configured");
     return null;
@@ -504,11 +504,15 @@ export async function deployCapitalWithGemini(data: DeployCapitalRequest): Promi
       }
     });
 
+    const marketPricesSection = marketPrices && Object.keys(marketPrices).length > 0
+      ? `\n\nCURRENT REAL-TIME EGX MARKET PRICES (as of today, use ONLY these prices - do NOT use prices from your training data):\n${Object.entries(marketPrices).map(([sym, price]) => `${sym}: ${price.toFixed(2)} EGP`).join("\n")}\n`
+      : "";
+
     const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). A client wants to deploy ${data.amountToDeployEGP} EGP into their portfolio.
 
 CURRENT PORTFOLIO:
 ${JSON.stringify(data.portfolio, null, 2)}
-
+${marketPricesSection}
 AMOUNT TO DEPLOY: ${data.amountToDeployEGP} EGP
 
 Recommend how to allocate this capital. Options:
@@ -523,6 +527,8 @@ Consider:
 - Valuation opportunities in current market
 - Risk management
 
+CRITICAL: You MUST use the CURRENT REAL-TIME MARKET PRICES provided above for all price references and buy zone calculations. Do NOT rely on your training data for stock prices as they are severely outdated.
+
 RESPONSE FORMAT (JSON):
 {
   "strategy": "<brief 1-2 sentence strategy summary>",
@@ -534,7 +540,7 @@ RESPONSE FORMAT (JSON):
       "percentage": <number 0-100>,
       "reason": "<why this stock and this amount>",
       "isNewPosition": <true if not in current portfolio, false if increasing existing>,
-      "buyZone": { "low": <ideal entry price low end>, "high": <ideal entry price high end> }
+      "buyZone": { "low": <ideal entry price low end based on current real-time price>, "high": <ideal entry price high end based on current real-time price> }
     }
   ],
   "reasoning": "<detailed paragraph explaining the overall allocation strategy>",
@@ -546,7 +552,7 @@ IMPORTANT:
 - Be specific with stock symbols and amounts
 - Include mix of existing and potentially new positions
 - Reference actual portfolio data in reasoning
-- buyZone must be a price range (low-high in EGP) representing the ideal entry price zone for each stock
+- buyZone MUST be based on the CURRENT REAL-TIME PRICES provided, NOT your training data. The buy zone should be a realistic range around the current market price.
 
 Respond ONLY with valid JSON, no markdown.`;
 
