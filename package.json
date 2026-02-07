@@ -1,0 +1,25 @@
+{
+  "name": "equra-ai-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend API for Equra AI - EGX Stock Portfolio App",
+  "main": "server/index.ts",
+  "scripts": {
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "dev": "NODE_ENV=development tsx server/index.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "24.10.0",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

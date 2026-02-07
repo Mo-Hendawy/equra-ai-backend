@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "HDBK",
+    "price": 97.01,
+    "change": 44.96000000000001,
+    "changePercent": 86.37848222862634,
+    "previousClose": 52.05,
+    "open": 98.98,
+    "high": 99.1,
+    "low": 96.94,
+    "volume": 146034,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401884467
+}

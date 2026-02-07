@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ETEL",
+    "price": 84.89,
+    "change": 50.89,
+    "changePercent": 149.6764705882353,
+    "previousClose": 34,
+    "open": 83.3,
+    "high": 84.96,
+    "low": 82.84,
+    "volume": 1605333,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401127881
+}

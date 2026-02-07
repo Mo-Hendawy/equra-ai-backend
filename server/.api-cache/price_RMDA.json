@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "RMDA",
+    "price": 3.48,
+    "change": -0.08999999999999986,
+    "changePercent": -2.521008403361341,
+    "previousClose": 3.57,
+    "open": 3.32,
+    "high": 3.55,
+    "low": 3.25,
+    "volume": 42831496,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008187
+}

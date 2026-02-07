@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ABUK",
+    "price": 65.66,
+    "change": 9.559999999999995,
+    "changePercent": 17.040998217468797,
+    "previousClose": 56.1,
+    "open": 65.97,
+    "high": 66.43,
+    "low": 65,
+    "volume": 1460413,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008203
+}

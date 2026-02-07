@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ISPH",
+    "price": 12.75,
+    "change": 6.3,
+    "changePercent": 97.67441860465115,
+    "previousClose": 6.45,
+    "open": 11.79,
+    "high": 13.72,
+    "low": 11.77,
+    "volume": 28366459,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008206
+}

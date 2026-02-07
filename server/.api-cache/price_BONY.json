@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "BONY",
+    "price": 3.72,
+    "change": -1.2799999999999998,
+    "changePercent": -25.599999999999994,
+    "previousClose": 5,
+    "open": 3.73,
+    "high": 3.78,
+    "low": 3.68,
+    "volume": 1848814,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008227
+}

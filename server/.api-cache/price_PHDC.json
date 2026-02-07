@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "PHDC",
+    "price": 8.83,
+    "change": 2.3899999999999997,
+    "changePercent": 37.11180124223602,
+    "previousClose": 6.44,
+    "open": 8.86,
+    "high": 8.93,
+    "low": 8.71,
+    "volume": 7849897,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401776281
+}

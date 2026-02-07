@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ACGC",
+    "price": 8.17,
+    "change": 0.2599999999999998,
+    "changePercent": 3.286978508217443,
+    "previousClose": 7.91,
+    "open": 8.25,
+    "high": 8.35,
+    "low": 8.13,
+    "volume": 598985,
+    "source": "EODHD"
+  },
+  "timestamp": 1770425691439
+}

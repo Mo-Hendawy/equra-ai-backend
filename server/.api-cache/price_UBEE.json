@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "UBEE",
+    "price": 13.86,
+    "change": -0.5300000000000011,
+    "changePercent": -3.683113273106332,
+    "previousClose": 14.39,
+    "open": 14.04,
+    "high": 14.12,
+    "low": 13.86,
+    "volume": 272221,
+    "source": "EODHD"
+  },
+  "timestamp": 1770422449861
+}

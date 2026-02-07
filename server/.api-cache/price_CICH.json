@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "CICH",
+    "price": 11.16,
+    "change": 5.22,
+    "changePercent": 87.87878787878786,
+    "previousClose": 5.94,
+    "open": 10.7,
+    "high": 11.24,
+    "low": 10.63,
+    "volume": 490425,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401936043
+}

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "GBCO",
+    "price": 31.03,
+    "change": 14.830000000000002,
+    "changePercent": 91.54320987654323,
+    "previousClose": 16.2,
+    "open": 31.44,
+    "high": 31.75,
+    "low": 30.6,
+    "volume": 3058735,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008215
+}

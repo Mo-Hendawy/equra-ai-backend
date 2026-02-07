@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "VALU",
+    "price": 10.38,
+    "change": 1.5,
+    "changePercent": 16.89189189189189,
+    "previousClose": 8.88,
+    "open": 10.44,
+    "high": 10.57,
+    "low": 10.3,
+    "volume": 4081829,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008231
+}

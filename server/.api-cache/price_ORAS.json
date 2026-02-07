@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ORAS",
+    "price": 433,
+    "change": 164.48000000000002,
+    "changePercent": 61.25428273499182,
+    "previousClose": 268.52,
+    "open": 440,
+    "high": 440.99,
+    "low": 428,
+    "volume": 300206,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401800683
+}

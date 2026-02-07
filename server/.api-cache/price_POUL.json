@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "POUL",
+    "price": 28.88,
+    "change": 13.959999999999999,
+    "changePercent": 93.5656836461126,
+    "previousClose": 14.92,
+    "open": 28,
+    "high": 31.24,
+    "low": 28,
+    "volume": 5323111,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008213
+}

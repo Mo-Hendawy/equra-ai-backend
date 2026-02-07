@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "MICH",
+    "price": 28.6,
+    "change": 1.1400000000000006,
+    "changePercent": 4.151493080844867,
+    "previousClose": 27.46,
+    "open": 28.38,
+    "high": 28.86,
+    "low": 28.2,
+    "volume": 284584,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008221
+}

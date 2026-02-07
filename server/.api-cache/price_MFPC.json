@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "MFPC",
+    "price": 32.01,
+    "change": -8.21,
+    "changePercent": -20.412729985082052,
+    "previousClose": 40.22,
+    "open": 32.39,
+    "high": 32.62,
+    "low": 31.9,
+    "volume": 1415978,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008223
+}

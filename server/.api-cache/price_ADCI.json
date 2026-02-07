@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "ADCI",
+    "price": 173.75,
+    "change": 32.25999999999999,
+    "changePercent": 22.80019789384408,
+    "previousClose": 141.49,
+    "open": 171.32,
+    "high": 179.9,
+    "low": 169,
+    "volume": 54942,
+    "source": "EODHD"
+  },
+  "timestamp": 1770422449728
+}

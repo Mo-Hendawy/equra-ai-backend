@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "EGAL",
+    "price": 241.5,
+    "change": 94.85,
+    "changePercent": 64.6778042959427,
+    "previousClose": 146.65,
+    "open": 245.98,
+    "high": 248.49,
+    "low": 240,
+    "volume": 198600,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008192
+}

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "COMI",
+    "price": 137.25,
+    "change": 60.2,
+    "changePercent": 78.13108371187542,
+    "previousClose": 77.05,
+    "open": 136.5,
+    "high": 138.99,
+    "low": 136.5,
+    "volume": 10151613,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401406231
+}

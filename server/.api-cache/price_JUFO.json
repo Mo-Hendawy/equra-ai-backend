@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "JUFO",
+    "price": 30.8,
+    "change": -6.699999999999999,
+    "changePercent": -17.866666666666664,
+    "previousClose": 37.5,
+    "open": 31.08,
+    "high": 31.84,
+    "low": 30.55,
+    "volume": 1168692,
+    "source": "EODHD"
+  },
+  "timestamp": 1770403008190
+}

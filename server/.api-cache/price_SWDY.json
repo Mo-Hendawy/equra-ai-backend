@@ -1,0 +1,15 @@
+{
+  "data": {
+    "symbol": "SWDY",
+    "price": 79.89,
+    "change": 0.8100000000000023,
+    "changePercent": 1.0242792109256478,
+    "previousClose": 79.08,
+    "open": 80.88,
+    "high": 80.97,
+    "low": 79.01,
+    "volume": 220182,
+    "source": "EODHD"
+  },
+  "timestamp": 1770401648381
+}
