@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { getCached, setCache, getStaleCache } from "./api-cache";
-import { analyzeStockWithGemini, createFallbackAnalysis, type StockDataForAI } from "./gemini-service";
+import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
@@ -1015,6 +1015,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Transaction extraction error:", error);
       res.status(500).json({ error: "Failed to extract transactions from image" });
+    }
+  });
+
+  app.post("/api/portfolio-analysis", async (req, res) => {
+    const portfolioData: PortfolioAnalysisRequest = req.body;
+
+    if (!portfolioData || !portfolioData.holdings || portfolioData.holdings.length === 0) {
+      return res.status(400).json({ error: "Portfolio holdings data required" });
+    }
+
+    try {
+      const analysis = await analyzePortfolioWithGemini(portfolioData);
+      if (analysis) {
+        res.json(analysis);
+      } else {
+        res.status(503).json({ error: "AI analysis unavailable. Check Gemini API key." });
+      }
+    } catch (error) {
+      console.error("Portfolio analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze portfolio" });
+    }
+  });
+
+  app.post("/api/deploy-capital", async (req, res) => {
+    const data: DeployCapitalRequest = req.body;
+
+    if (!data || !data.portfolio || !data.amountToDeployEGP) {
+      return res.status(400).json({ error: "Portfolio data and amount required" });
+    }
+
+    try {
+      const recommendation = await deployCapitalWithGemini(data);
+      if (recommendation) {
+        res.json(recommendation);
+      } else {
+        res.status(503).json({ error: "AI analysis unavailable. Check Gemini API key." });
+      }
+    } catch (error) {
+      console.error("Deploy capital error:", error);
+      res.status(500).json({ error: "Failed to get deployment recommendation" });
     }
   });
 

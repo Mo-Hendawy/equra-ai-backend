@@ -7,7 +7,7 @@ import * as path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 // Get API key from environment
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_API_KEY.length + ')' : 'NO - Key is empty!'}`);
 
@@ -366,4 +366,199 @@ export function createFallbackAnalysis(
     simpleExplanation,
     riskSignals,
   };
+}
+
+// Portfolio Analysis with Gemini
+export interface PortfolioAnalysisRequest {
+  holdings: {
+    symbol: string;
+    nameEn: string;
+    sector: string;
+    shares: number;
+    averageCost: number;
+    currentPrice: number;
+    role: string;
+    marketValue: number;
+    totalCost: number;
+    profitLoss: number;
+    profitLossPercent: number;
+    weight: number;
+    eps?: number;
+    peRatio?: number;
+    bookValue?: number;
+    dividendYield?: number;
+  }[];
+  totalValue: number;
+  totalCost: number;
+  totalPL: number;
+  totalPLPercent: number;
+}
+
+export interface PortfolioAnalysisResult {
+  overallHealth: "Strong" | "Good" | "Fair" | "Weak";
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  diversificationScore: "Well Diversified" | "Moderately Diversified" | "Concentrated";
+  riskLevel: "Low" | "Medium" | "High";
+  sectorBreakdown: string;
+  topPerformers: string[];
+  underperformers: string[];
+}
+
+export async function analyzePortfolioWithGemini(data: PortfolioAnalysisRequest): Promise<PortfolioAnalysisResult | null> {
+  if (!genAI || !GEMINI_API_KEY) {
+    console.warn("Gemini API key not configured");
+    return null;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      }
+    });
+
+    const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). Analyze this investment portfolio.
+
+PORTFOLIO DATA:
+${JSON.stringify(data, null, 2)}
+
+Provide a comprehensive portfolio analysis covering:
+1. Overall health assessment
+2. Strengths of this portfolio
+3. Weaknesses and risks
+4. Diversification quality (sector concentration, single stock risk)
+5. Specific actionable recommendations
+6. Top performers and underperformers
+
+RESPONSE FORMAT (JSON):
+{
+  "overallHealth": "Strong" | "Good" | "Fair" | "Weak",
+  "summary": "<2-3 sentence portfolio summary>",
+  "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
+  "weaknesses": ["<weakness 1>", "<weakness 2>", "<weakness 3>"],
+  "recommendations": ["<specific actionable recommendation 1>", "<recommendation 2>", "<recommendation 3>"],
+  "diversificationScore": "Well Diversified" | "Moderately Diversified" | "Concentrated",
+  "riskLevel": "Low" | "Medium" | "High",
+  "sectorBreakdown": "<brief sector concentration analysis>",
+  "topPerformers": ["<stock symbol and why>", "<stock symbol and why>"],
+  "underperformers": ["<stock symbol and why>", "<stock symbol and why>"]
+}
+
+Be specific with numbers. Reference actual stocks and values from the portfolio.
+Respond ONLY with valid JSON, no markdown.`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
+    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
+    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+    cleanedText = cleanedText.trim();
+
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Portfolio analysis error:", error);
+    return null;
+  }
+}
+
+// Deploy Capital Recommendation with Gemini
+export interface DeployCapitalRequest {
+  portfolio: PortfolioAnalysisRequest;
+  amountToDeployEGP: number;
+}
+
+export interface DeployCapitalResult {
+  strategy: string;
+  allocations: {
+    symbol: string;
+    nameEn: string;
+    amountEGP: number;
+    percentage: number;
+    reason: string;
+    isNewPosition: boolean;
+  }[];
+  reasoning: string;
+  riskNote: string;
+}
+
+export async function deployCapitalWithGemini(data: DeployCapitalRequest): Promise<DeployCapitalResult | null> {
+  if (!genAI || !GEMINI_API_KEY) {
+    console.warn("Gemini API key not configured");
+    return null;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      }
+    });
+
+    const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). A client wants to deploy ${data.amountToDeployEGP} EGP into their portfolio.
+
+CURRENT PORTFOLIO:
+${JSON.stringify(data.portfolio, null, 2)}
+
+AMOUNT TO DEPLOY: ${data.amountToDeployEGP} EGP
+
+Recommend how to allocate this capital. Options:
+- Increase existing positions (stocks already in portfolio)
+- Add new EGX stocks not currently in portfolio
+- Mix of both
+
+Consider:
+- Current portfolio balance and diversification
+- Which positions are underweight
+- Which sectors need more exposure
+- Valuation opportunities in current market
+- Risk management
+
+RESPONSE FORMAT (JSON):
+{
+  "strategy": "<brief 1-2 sentence strategy summary>",
+  "allocations": [
+    {
+      "symbol": "<EGX stock symbol>",
+      "nameEn": "<company name>",
+      "amountEGP": <number>,
+      "percentage": <number 0-100>,
+      "reason": "<why this stock and this amount>",
+      "isNewPosition": <true if not in current portfolio, false if increasing existing>
+    }
+  ],
+  "reasoning": "<detailed paragraph explaining the overall allocation strategy>",
+  "riskNote": "<brief risk disclaimer or caution>"
+}
+
+IMPORTANT:
+- Allocations must sum to ${data.amountToDeployEGP} EGP
+- Be specific with stock symbols and amounts
+- Include mix of existing and potentially new positions
+- Reference actual portfolio data in reasoning
+
+Respond ONLY with valid JSON, no markdown.`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
+    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
+    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+    cleanedText = cleanedText.trim();
+
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Deploy capital analysis error:", error);
+    return null;
+  }
 }
