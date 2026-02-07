@@ -1,1 +1,1 @@
-Add buy zone price range to deploy capital recommendations
+Feed real-time EGX market prices to Gemini for deploy capital recommendations
