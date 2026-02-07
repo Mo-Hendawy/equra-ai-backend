@@ -4,7 +4,7 @@ import * as path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
 export interface ExtractedTransaction {

@@ -7,7 +7,7 @@ import * as path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 // Get API key from environment
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
 
 console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_API_KEY.length + ')' : 'NO - Key is empty!'}`);
 
