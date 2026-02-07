@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
+import * as fs from "fs";
+import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
@@ -1066,6 +1068,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const recommendation = await deployCapitalWithGemini(data, marketPrices);
       if (recommendation) {
+        // Save to recommendation history
+        try {
+          const historyEntry = {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            amountToDeployEGP: data.amountToDeployEGP,
+            result: recommendation,
+            portfolioSnapshot: data.portfolio.holdings.map(h => ({
+              symbol: h.symbol,
+              nameEn: h.nameEn,
+              shares: h.shares,
+              averageCost: h.averageCost,
+              currentPrice: h.currentPrice,
+              weight: h.weight,
+              sector: h.sector,
+              role: h.role,
+            })),
+          };
+          const historyPath = path.join(process.cwd(), "server", ".api-cache", "recommendation_history.json");
+          let history: any[] = [];
+          if (fs.existsSync(historyPath)) {
+            try { history = JSON.parse(fs.readFileSync(historyPath, "utf-8")); } catch {}
+          }
+          history.unshift(historyEntry);
+          fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+          console.log(`Saved recommendation history entry ${historyEntry.id}`);
+        } catch (err) {
+          console.error("Failed to save recommendation history:", err);
+        }
         res.json(recommendation);
       } else {
         res.status(503).json({ error: "AI analysis unavailable. Check Gemini API key." });
@@ -1073,6 +1104,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Deploy capital error:", error);
       res.status(500).json({ error: "Failed to get deployment recommendation" });
+    }
+  });
+
+  // Recommendation History endpoints
+  app.get("/api/recommendation-history", async (_req, res) => {
+    try {
+      const historyPath = path.join(process.cwd(), "server", ".api-cache", "recommendation_history.json");
+      if (!fs.existsSync(historyPath)) {
+        return res.json([]);
+      }
+      const history = JSON.parse(fs.readFileSync(historyPath, "utf-8"));
+      res.json(history);
+    } catch (error) {
+      console.error("Failed to read recommendation history:", error);
+      res.status(500).json({ error: "Failed to read history" });
+    }
+  });
+
+  app.delete("/api/recommendation-history/:id", async (req, res) => {
+    try {
+      const historyPath = path.join(process.cwd(), "server", ".api-cache", "recommendation_history.json");
+      if (!fs.existsSync(historyPath)) {
+        return res.status(404).json({ error: "No history found" });
+      }
+      let history: any[] = JSON.parse(fs.readFileSync(historyPath, "utf-8"));
+      const before = history.length;
+      history = history.filter((entry: any) => entry.id !== req.params.id);
+      if (history.length === before) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete recommendation history entry:", error);
+      res.status(500).json({ error: "Failed to delete entry" });
     }
   });
 
