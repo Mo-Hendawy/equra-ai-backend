@@ -483,6 +483,7 @@ export interface DeployCapitalResult {
     percentage: number;
     reason: string;
     isNewPosition: boolean;
+    buyZone: { low: number; high: number };
   }[];
   reasoning: string;
   riskNote: string;
@@ -532,7 +533,8 @@ RESPONSE FORMAT (JSON):
       "amountEGP": <number>,
       "percentage": <number 0-100>,
       "reason": "<why this stock and this amount>",
-      "isNewPosition": <true if not in current portfolio, false if increasing existing>
+      "isNewPosition": <true if not in current portfolio, false if increasing existing>,
+      "buyZone": { "low": <ideal entry price low end>, "high": <ideal entry price high end> }
     }
   ],
   "reasoning": "<detailed paragraph explaining the overall allocation strategy>",
@@ -544,6 +546,7 @@ IMPORTANT:
 - Be specific with stock symbols and amounts
 - Include mix of existing and potentially new positions
 - Reference actual portfolio data in reasoning
+- buyZone must be a price range (low-high in EGP) representing the ideal entry price zone for each stock
 
 Respond ONLY with valid JSON, no markdown.`;
 
