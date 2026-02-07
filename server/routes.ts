@@ -885,6 +885,9 @@ async function calculateAnalysis(
       geminiRiskLevel: geminiAnalysis.riskLevel,
       geminiKeyPoints: geminiAnalysis.keyPoints,
       analysisMethod: "Gemini AI",
+      valuationStatus: geminiAnalysis.valuationStatus,
+      simpleExplanation: geminiAnalysis.simpleExplanation,
+      riskSignals: geminiAnalysis.riskSignals,
     };
   }
 
@@ -935,6 +938,9 @@ async function calculateAnalysis(
     geminiRiskLevel: fallbackAnalysis.riskLevel,
     geminiKeyPoints: fallbackAnalysis.keyPoints,
     analysisMethod: fallbackAnalysis.analysisMethod,
+    valuationStatus: fallbackAnalysis.valuationStatus,
+    simpleExplanation: fallbackAnalysis.simpleExplanation,
+    riskSignals: fallbackAnalysis.riskSignals,
   };
 }
 

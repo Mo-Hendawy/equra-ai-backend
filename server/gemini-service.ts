@@ -77,6 +77,11 @@ export interface GeminiAnalysis {
   keyPoints: string[];
   
   analysisMethod: string;
+  
+  // Simplified analysis fields
+  valuationStatus: "Undervalued" | "Fair" | "Overvalued";
+  simpleExplanation: string[];
+  riskSignals: string[];
 }
 
 export async function analyzeStockWithGemini(stockData: StockDataForAI): Promise<GeminiAnalysis | null> {
@@ -165,7 +170,18 @@ RESPONSE FORMAT (JSON):
     "<Detailed point about risk factors and metrics>",
     "<Detailed point about what to watch for and action items>"
   ],
-  "analysisMethod": "<Detailed description of all valuation methods used and how you arrived at the conclusion>"
+  "analysisMethod": "<Detailed description of all valuation methods used and how you arrived at the conclusion>",
+  "valuationStatus": "Undervalued" | "Fair" | "Overvalued",
+  "simpleExplanation": [
+    "<Simple bullet 1: Explain valuation in plain language with numbers>",
+    "<Simple bullet 2: Explain risk/return or dividend (MUST include dividend if yield exists)>",
+    "<Simple bullet 3: Explain price position or opportunity>"
+  ],
+  "riskSignals": [
+    "<Risk warning 1 if any, e.g., 'High PE ratio'>",
+    "<Risk warning 2 if any>",
+    "<Risk warning 3 if any>"
+  ]
 }
 
 Make the reasoning field VERY DETAILED - include:
@@ -174,6 +190,17 @@ Make the reasoning field VERY DETAILED - include:
 - Entry Zones paragraph explaining each level
 - Risk Assessment paragraph
 - Conclusion with actionable recommendations
+
+IMPORTANT for simpleExplanation:
+- Keep each bullet short and clear (max 25 words)
+- No finance jargon
+- If dividend yield exists, ALWAYS include it in one bullet
+- Use actual numbers from the data
+
+IMPORTANT for riskSignals:
+- List actual warning signs from the data (high PE, low dividend, overvaluation, etc.)
+- Keep phrases short (max 10 words each)
+- If no significant risks, return empty array []
 
 Respond ONLY with valid JSON, no markdown formatting or additional text.`;
 
@@ -270,15 +297,43 @@ export function createFallbackAnalysis(
   
   // Determine recommendation
   let recommendation: GeminiAnalysis["recommendation"] = "Hold";
+  let valuationStatus: "Undervalued" | "Fair" | "Overvalued" = "Fair";
+  
   if (fairValue) {
     if (currentPrice < fairValue * 0.7) recommendation = "Strong Buy";
     else if (currentPrice < fairValue * 0.85) recommendation = "Buy";
     else if (currentPrice < fairValue * 1.15) recommendation = "Hold";
     else if (currentPrice < fairValue * 1.3) recommendation = "Sell";
     else recommendation = "Strong Sell";
+    
+    const ratio = currentPrice / fairValue;
+    if (ratio < 0.85) valuationStatus = "Undervalued";
+    else if (ratio > 1.15) valuationStatus = "Overvalued";
+    else valuationStatus = "Fair";
   } else if (sharpeRatio && sharpeRatio > 1) {
-    recommendation = "Buy"; // Based on risk-adjusted returns
+    recommendation = "Buy";
   }
+  
+  const simpleExplanation: string[] = [];
+  if (fairValue) {
+    const diff = ((currentPrice / fairValue - 1) * 100).toFixed(0);
+    simpleExplanation.push(`Stock trading ${Math.abs(Number(diff))}% ${currentPrice > fairValue ? 'above' : 'below'} fair value of ${fairValue.toFixed(2)} EGP`);
+  }
+  if (dividendYield) {
+    simpleExplanation.push(`Dividend yield: ${dividendYield.toFixed(2)}%`);
+  }
+  if (sharpeRatio) {
+    simpleExplanation.push(`Risk-adjusted return (Sharpe): ${sharpeRatio.toFixed(2)}`);
+  }
+  if (simpleExplanation.length === 0) {
+    simpleExplanation.push("Limited data available for analysis");
+  }
+  
+  const riskSignals: string[] = [];
+  if (peRatio && peRatio > 30) riskSignals.push("High P/E ratio");
+  if (sharpeRatio && sharpeRatio < 0) riskSignals.push("Negative risk-adjusted returns");
+  if (valuationStatus === "Overvalued") riskSignals.push("Trading above fair value");
+  if (!dividendYield || dividendYield < 1) riskSignals.push("Low or no dividend");
   
   return {
     fairValueEstimate: fairValue,
@@ -303,5 +358,8 @@ export function createFallbackAnalysis(
       peRatio ? `P/E: ${peRatio.toFixed(2)}` : "P/E ratio not available"
     ],
     analysisMethod: "Formula-based (fallback)",
+    valuationStatus,
+    simpleExplanation,
+    riskSignals,
   };
 }
