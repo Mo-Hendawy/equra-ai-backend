@@ -791,7 +791,8 @@ async function calculateAnalysis(
   refresh: boolean = false
 ): Promise<StockAnalysis> {
   const currentPrice = price.price;
-  const eps = financials.eps;
+  // Derive EPS from P/E and price if EPS is missing but P/E is available
+  const eps = financials.eps || (financials.peRatio && currentPrice && financials.peRatio > 0 ? currentPrice / financials.peRatio : null);
   const peRatio = financials.peRatio;
   const bookValue = financials.bookValue;
   const dividendYield = financials.dividendYield || null;
