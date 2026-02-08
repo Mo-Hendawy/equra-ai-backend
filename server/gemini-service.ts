@@ -571,3 +571,139 @@ Respond ONLY with valid JSON, no markdown.`;
     return null;
   }
 }
+
+// Compare Stocks with Gemini
+export interface CompareStocksRequest {
+  symbols: string[];
+  stockData: {
+    symbol: string;
+    nameEn: string;
+    currentPrice: number;
+    peRatio?: number | null;
+    eps?: number | null;
+    dividendYield?: number | null;
+    bookValue?: number | null;
+    sector?: string;
+  }[];
+  portfolio: PortfolioAnalysisRequest;
+  amountEGP?: number;
+}
+
+export interface CompareStocksResult {
+  verdict: string;
+  action: "buy_one" | "split" | "existing_stock" | "dry_powder" | "mixed";
+  rankings: {
+    symbol: string;
+    nameEn: string;
+    growthScore: number;
+    longTermScore: number;
+    buyUrgency: "Buy Now" | "Can Wait" | "Avoid";
+    summary: string;
+  }[];
+  allocation?: {
+    symbol: string;
+    nameEn: string;
+    amountEGP: number;
+    percentage: number;
+    isFromCompared: boolean;
+  }[];
+  reasoning: string;
+  riskNote: string;
+}
+
+export async function compareStocksWithGemini(data: CompareStocksRequest): Promise<CompareStocksResult | null> {
+  if (!genAI || !GEMINI_API_KEY) {
+    console.warn("Gemini API key not configured");
+    return null;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      }
+    });
+
+    const amountSection = data.amountEGP
+      ? `\nThe client has ${data.amountEGP} EGP to deploy.`
+      : "";
+
+    const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). A client wants you to compare these stocks and advise which to buy.
+
+STOCKS TO COMPARE (with CURRENT REAL-TIME prices - use ONLY these, NOT your training data):
+${JSON.stringify(data.stockData, null, 2)}
+
+CLIENT'S CURRENT PORTFOLIO:
+${JSON.stringify(data.portfolio, null, 2)}
+${amountSection}
+
+IMPORTANT: You have FULL FREEDOM to recommend ANY of these outcomes:
+1. Buy one of the compared stocks (all-in on one)
+2. Split the money between the compared stocks
+3. Skip ALL compared stocks and recommend putting money into an EXISTING portfolio stock instead
+4. Keep as dry powder (cash) - don't buy anything right now
+5. Mix - some in compared stock(s), some elsewhere
+
+Consider:
+- Growth potential of each stock
+- Long-term value and fundamentals
+- Current valuation (is it cheap or expensive right now?)
+- Buy urgency (buy now before it moves, or it can wait)
+- How each stock fits with the client's existing portfolio
+- Diversification impact
+- Whether the portfolio already has enough exposure to certain sectors
+- Market timing - is now a good time or should they wait?
+
+RESPONSE FORMAT (JSON):
+{
+  "verdict": "<clear 1-2 sentence verdict, e.g. 'Buy MICH now, SWDY can wait. Consider adding to existing EGAL position instead of ORAS.'>",
+  "action": "buy_one" | "split" | "existing_stock" | "dry_powder" | "mixed",
+  "rankings": [
+    {
+      "symbol": "<stock symbol>",
+      "nameEn": "<company name>",
+      "growthScore": <1-10>,
+      "longTermScore": <1-10>,
+      "buyUrgency": "Buy Now" | "Can Wait" | "Avoid",
+      "summary": "<2-3 sentence analysis of this stock>"
+    }
+  ],
+  "allocation": [
+    {
+      "symbol": "<stock symbol or existing portfolio stock>",
+      "nameEn": "<company name>",
+      "amountEGP": <number or 0 if no amount specified>,
+      "percentage": <number 0-100>,
+      "isFromCompared": <true if from compared list, false if existing portfolio stock or cash>
+    }
+  ],
+  "reasoning": "<detailed paragraph explaining your recommendation and why>",
+  "riskNote": "<brief risk disclaimer>"
+}
+
+IMPORTANT:
+- Rankings must include ALL compared stocks
+- Allocation should reflect your actual recommendation (could be 100% one stock, or 100% cash/dry powder)
+- If recommending dry powder, set allocation to [{"symbol": "CASH", "nameEn": "Dry Powder (Cash)", "amountEGP": <amount>, "percentage": 100, "isFromCompared": false}]
+- Be honest and specific. Don't be afraid to say "don't buy any of these"
+- Reference actual numbers from the data
+
+Respond ONLY with valid JSON, no markdown.`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
+    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
+    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+    cleanedText = cleanedText.trim();
+
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Compare stocks error:", error);
+    return null;
+  }
+}

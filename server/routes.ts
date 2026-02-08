@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import * as fs from "fs";
 import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
-import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest } from "./gemini-service";
+import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
@@ -1140,6 +1140,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to delete recommendation history entry:", error);
       res.status(500).json({ error: "Failed to delete entry" });
+    }
+  });
+
+  app.post("/api/compare-stocks", async (req, res) => {
+    const { symbols, portfolio, amountEGP } = req.body;
+
+    if (!symbols || !Array.isArray(symbols) || symbols.length < 2 || symbols.length > 3) {
+      return res.status(400).json({ error: "Provide 2-3 stock symbols to compare" });
+    }
+    if (!portfolio || !portfolio.holdings) {
+      return res.status(400).json({ error: "Portfolio data required" });
+    }
+
+    try {
+      // Fetch real-time data for the compared stocks
+      const stockData = await Promise.all(
+        symbols.map(async (symbol: string) => {
+          const priceData = await fetchStockPrice(symbol);
+          const financials = await fetchStockFinancials(symbol);
+          return {
+            symbol,
+            nameEn: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
+            currentPrice: priceData.price || 0,
+            peRatio: financials.peRatio,
+            eps: financials.eps || (financials.peRatio && priceData.price && financials.peRatio > 0 ? priceData.price / financials.peRatio : null),
+            dividendYield: financials.dividendYield,
+            bookValue: financials.bookValue,
+            sector: undefined,
+          };
+        })
+      );
+
+      const compareRequest: CompareStocksRequest = {
+        symbols,
+        stockData,
+        portfolio,
+        amountEGP: amountEGP || undefined,
+      };
+
+      const result = await compareStocksWithGemini(compareRequest);
+      if (result) {
+        res.json(result);
+      } else {
+        res.status(503).json({ error: "AI analysis unavailable. Check Gemini API key." });
+      }
+    } catch (error) {
+      console.error("Compare stocks error:", error);
+      res.status(500).json({ error: "Failed to compare stocks" });
     }
   });
 
