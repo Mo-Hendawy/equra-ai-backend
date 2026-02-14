@@ -13,41 +13,37 @@ console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
-// Models to try in order (fallback chain)
-const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+const GEMINI_MODEL = "gemini-2.5-flash-lite";
 
 async function callGeminiWithRetry(
   prompt: string,
   opts: { temperature?: number; maxOutputTokens?: number } = {}
 ): Promise<string> {
   const { temperature = 0.7, maxOutputTokens = 4096 } = opts;
-  const maxRetries = 3;
+  const maxRetries = 5;
 
-  for (const modelName of GEMINI_MODELS) {
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const model = genAI!.getGenerativeModel({
-          model: modelName,
-          generationConfig: { temperature, maxOutputTokens },
-        });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-      } catch (error: any) {
-        const status = error?.status;
-        const isRetryable = status === 429 || status === 503;
-        console.warn(`Gemini ${modelName} attempt ${attempt + 1} failed: ${status || error.message}`);
-        if (isRetryable && attempt < maxRetries - 1) {
-          const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise((r) => setTimeout(r, delay));
-          continue;
-        }
-        if (!isRetryable) break; // non-retryable error, try next model
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const model = genAI!.getGenerativeModel({
+        model: GEMINI_MODEL,
+        generationConfig: { temperature, maxOutputTokens },
+      });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error: any) {
+      const status = error?.status;
+      const isRetryable = status === 429 || status === 503;
+      console.warn(`Gemini attempt ${attempt + 1}/${maxRetries} failed: ${status || error.message}`);
+      if (isRetryable && attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s, 16s, 32s
+        console.log(`Retrying in ${delay / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
       }
+      throw error; // non-retryable or all retries exhausted — throw to caller
     }
-    console.warn(`All retries exhausted for ${modelName}, trying next model...`);
   }
-  throw new Error("All Gemini models failed after retries");
+  throw new Error("Gemini failed after all retries");
 }
 
 function cleanJsonResponse(text: string): string {
