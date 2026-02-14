@@ -13,6 +13,51 @@ console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
+// Models to try in order (fallback chain)
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+
+async function callGeminiWithRetry(
+  prompt: string,
+  opts: { temperature?: number; maxOutputTokens?: number } = {}
+): Promise<string> {
+  const { temperature = 0.7, maxOutputTokens = 4096 } = opts;
+  const maxRetries = 3;
+
+  for (const modelName of GEMINI_MODELS) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const model = genAI!.getGenerativeModel({
+          model: modelName,
+          generationConfig: { temperature, maxOutputTokens },
+        });
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (error: any) {
+        const status = error?.status;
+        const isRetryable = status === 429 || status === 503;
+        console.warn(`Gemini ${modelName} attempt ${attempt + 1} failed: ${status || error.message}`);
+        if (isRetryable && attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        if (!isRetryable) break; // non-retryable error, try next model
+      }
+    }
+    console.warn(`All retries exhausted for ${modelName}, trying next model...`);
+  }
+  throw new Error("All Gemini models failed after retries");
+}
+
+function cleanJsonResponse(text: string): string {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```json')) cleaned = cleaned.substring(7);
+  else if (cleaned.startsWith('```')) cleaned = cleaned.substring(3);
+  if (cleaned.endsWith('```')) cleaned = cleaned.substring(0, cleaned.length - 3);
+  return cleaned.trim();
+}
+
 export interface ExtractedTransaction {
   type: "buy" | "sell";
   shares: number;
@@ -101,15 +146,6 @@ export async function analyzeStockWithGemini(stockData: StockDataForAI, skipCach
       console.warn("Gemini API key not configured, using fallback analysis");
       return null;
     }
-
-    // Use Gemini 2.5 Flash-Lite for free tier (available in your API key)
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash-lite",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096, // Increased for detailed analysis
-      }
-    });
 
     const prompt = `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.
 
@@ -210,25 +246,12 @@ Respond ONLY with valid JSON, no markdown formatting or additional text.`;
 
     console.log(`Requesting Gemini analysis for ${stockData.symbol}...`);
     
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const text = await callGeminiWithRetry(prompt);
 
     // Parse the JSON response
     let analysisData: GeminiAnalysis;
     try {
-      // Remove markdown code blocks if present (```json ... ```)
-      let cleanedText = text.trim();
-      if (cleanedText.startsWith('```json')) {
-        cleanedText = cleanedText.substring(7); // Remove ```json
-      } else if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.substring(3); // Remove ```
-      }
-      if (cleanedText.endsWith('```')) {
-        cleanedText = cleanedText.substring(0, cleanedText.length - 3); // Remove trailing ```
-      }
-      cleanedText = cleanedText.trim();
-      
+      const cleanedText = cleanJsonResponse(text);
       analysisData = JSON.parse(cleanedText);
       
       // Validate required fields
@@ -414,14 +437,6 @@ export async function analyzePortfolioWithGemini(data: PortfolioAnalysisRequest)
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      }
-    });
-
     const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). Analyze this investment portfolio.
 
 PORTFOLIO DATA:
@@ -452,16 +467,8 @@ RESPONSE FORMAT (JSON):
 Be specific with numbers. Reference actual stocks and values from the portfolio.
 Respond ONLY with valid JSON, no markdown.`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    let cleanedText = text.trim();
-    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
-    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
-    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    cleanedText = cleanedText.trim();
-
-    return JSON.parse(cleanedText);
+    const text = await callGeminiWithRetry(prompt);
+    return JSON.parse(cleanJsonResponse(text));
   } catch (error) {
     console.error("Portfolio analysis error:", error);
     return null;
@@ -496,14 +503,6 @@ export async function deployCapitalWithGemini(data: DeployCapitalRequest, market
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      }
-    });
-
     const marketPricesSection = marketPrices && Object.keys(marketPrices).length > 0
       ? `\n\nCURRENT REAL-TIME EGX MARKET PRICES (as of today, use ONLY these prices - do NOT use prices from your training data):\n${Object.entries(marketPrices).map(([sym, price]) => `${sym}: ${price.toFixed(2)} EGP`).join("\n")}\n`
       : "";
@@ -556,16 +555,8 @@ IMPORTANT:
 
 Respond ONLY with valid JSON, no markdown.`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    let cleanedText = text.trim();
-    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
-    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
-    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    cleanedText = cleanedText.trim();
-
-    return JSON.parse(cleanedText);
+    const text = await callGeminiWithRetry(prompt);
+    return JSON.parse(cleanJsonResponse(text));
   } catch (error) {
     console.error("Deploy capital analysis error:", error);
     return null;
@@ -618,14 +609,6 @@ export async function compareStocksWithGemini(data: CompareStocksRequest): Promi
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash-lite",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4096,
-      }
-    });
-
     const amountSection = data.amountEGP
       ? `\nThe client has ${data.amountEGP} EGP to deploy.`
       : "";
@@ -692,16 +675,8 @@ IMPORTANT:
 
 Respond ONLY with valid JSON, no markdown.`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    let cleanedText = text.trim();
-    if (cleanedText.startsWith('```json')) cleanedText = cleanedText.substring(7);
-    else if (cleanedText.startsWith('```')) cleanedText = cleanedText.substring(3);
-    if (cleanedText.endsWith('```')) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    cleanedText = cleanedText.trim();
-
-    return JSON.parse(cleanedText);
+    const text = await callGeminiWithRetry(prompt);
+    return JSON.parse(cleanJsonResponse(text));
   } catch (error) {
     console.error("Compare stocks error:", error);
     return null;
