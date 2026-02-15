@@ -52,10 +52,10 @@ interface ProviderConfig {
 }
 
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
-  gemini: { name: "Gemini 2.5 Pro", model: "gemini-2.5-pro" },
+  gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
   deepseek: { name: "DeepSeek V3", model: "deepseek-chat" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b" },
+  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b-versatile" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
@@ -108,7 +108,7 @@ async function callWithRetry(fn: () => Promise<string>, maxRetries = 3): Promise
       return await fn();
     } catch (error: any) {
       const status = error?.status || error?.statusCode;
-      const isRetryable = status === 429 || status === 503;
+      const isRetryable = (status === 429 || status === 503) && status !== 402;
       console.warn(`Attempt ${attempt + 1}/${maxRetries} failed: ${status || error.message}`);
       if (isRetryable && attempt < maxRetries - 1) {
         const delay = Math.pow(2, attempt + 1) * 1000;
