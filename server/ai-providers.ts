@@ -12,9 +12,18 @@ function getGeminiClient() {
   return key ? new GoogleGenerativeAI(key) : null;
 }
 
-function getDeepSeekClient() {
-  const key = process.env.DEEPSEEK_API_KEY || "";
-  return key ? new OpenAI({ apiKey: key, baseURL: "https://api.deepseek.com" }) : null;
+function getOpenRouterClient() {
+  const key = process.env.OPENROUTER_API_KEY || "";
+  return key
+    ? new OpenAI({
+        apiKey: key,
+        baseURL: "https://openrouter.ai/api/v1",
+        defaultHeaders: {
+          "HTTP-Referer": "https://equra.ai",
+          "X-Title": "Equra AI",
+        },
+      })
+    : null;
 }
 
 function getGroqClient() {
@@ -34,16 +43,17 @@ export function isProviderConfigured(provider: ProviderName): boolean {
 function isProviderAvailable(provider: ProviderName): boolean {
   switch (provider) {
     case "gemini": return !!(process.env.GEMINI_API_KEY);
-    case "deepseek": return !!(process.env.DEEPSEEK_API_KEY);
+    case "deepseek": return !!(process.env.OPENROUTER_API_KEY);
+    case "kimi": return !!(process.env.OPENROUTER_API_KEY);
     case "groq": return !!(process.env.GROQ_API_KEY);
     case "cerebras": return !!(process.env.CEREBRAS_API_KEY);
     default: return false;
   }
 }
 
-console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, DeepSeek=${!!process.env.DEEPSEEK_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
+console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, OpenRouter=${!!process.env.OPENROUTER_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
 
-export type ProviderName = "gemini" | "deepseek" | "groq" | "cerebras";
+export type ProviderName = "gemini" | "deepseek" | "kimi" | "groq" | "cerebras";
 
 interface ProviderConfig {
   name: string;
@@ -53,7 +63,8 @@ interface ProviderConfig {
 
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
-  deepseek: { name: "DeepSeek V3", model: "deepseek-chat" },
+  deepseek: { name: "DeepSeek V3 (OpenRouter)", model: "deepseek/deepseek-chat-v3-0324:free" },
+  kimi: { name: "Kimi K2 (OpenRouter)", model: "moonshotai/kimi-k2:free" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
   cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b-versatile" },
 };
@@ -128,9 +139,14 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
     case "gemini":
       return callWithRetry(() => callGemini(prompt));
     case "deepseek": {
-      const client = getDeepSeekClient();
-      if (!client) throw new Error("DeepSeek API key not configured");
+      const client = getOpenRouterClient();
+      if (!client) throw new Error("OpenRouter API key not configured");
       return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.deepseek.model, prompt));
+    }
+    case "kimi": {
+      const client = getOpenRouterClient();
+      if (!client) throw new Error("OpenRouter API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.kimi.model, prompt));
     }
     case "groq": {
       const client = getGroqClient();
