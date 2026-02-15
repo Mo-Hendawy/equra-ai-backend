@@ -63,10 +63,10 @@ interface ProviderConfig {
 
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
-  deepseek: { name: "DeepSeek V3 (OpenRouter)", model: "deepseek/deepseek-chat-v3-0324" },
+  deepseek: { name: "DeepSeek V3.2 (OpenRouter)", model: "deepseek/deepseek-v3.2" },
   kimi: { name: "Kimi K2.5 (OpenRouter)", model: "moonshotai/kimi-k2.5" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b" },
+  cerebras: { name: "GPT-OSS 120B (Cerebras)", model: "gpt-oss-120b" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
