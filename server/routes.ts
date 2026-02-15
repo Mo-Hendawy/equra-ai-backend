@@ -5,6 +5,7 @@ import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
+import { runAnalysis, getAvailableProviders, PROVIDERS, type ProviderName } from "./ai-providers";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -1188,6 +1189,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Compare stocks error:", error);
       res.status(500).json({ error: "Failed to compare stocks" });
+    }
+  });
+
+  // ─── Multi-Provider AI Endpoints ───
+
+  // List available providers
+  app.get("/api/ai/providers", (_req, res) => {
+    const available = getAvailableProviders();
+    const providers = available.map((p) => ({
+      id: p,
+      name: PROVIDERS[p].name,
+      model: PROVIDERS[p].model,
+    }));
+    res.json({ providers });
+  });
+
+  // Per-provider portfolio analysis
+  app.post("/api/ai/:provider/portfolio-analysis", async (req, res) => {
+    const provider = req.params.provider as ProviderName;
+    if (!PROVIDERS[provider]) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+    if (!PROVIDERS[provider].available) {
+      return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
+    }
+    const portfolioData = req.body;
+    if (!portfolioData?.holdings?.length) {
+      return res.status(400).json({ error: "Portfolio holdings data required" });
+    }
+    try {
+      const result = await runAnalysis(provider, "portfolio", { data: portfolioData });
+      if (result.error) {
+        return res.status(503).json(result);
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
+
+  // Per-provider deploy capital
+  app.post("/api/ai/:provider/deploy-capital", async (req, res) => {
+    const provider = req.params.provider as ProviderName;
+    if (!PROVIDERS[provider]) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+    if (!PROVIDERS[provider].available) {
+      return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
+    }
+    const data = req.body;
+    if (!data?.portfolio || !data?.amountToDeployEGP) {
+      return res.status(400).json({ error: "Portfolio data and amount required" });
+    }
+
+    try {
+      // Fetch market prices (shared across all providers)
+      const majorSymbols = Object.values(EGX_COMPANY_SYMBOL_MAP);
+      const portfolioSymbols = data.portfolio.holdings.map((h: any) => h.symbol);
+      const allSymbols = [...new Set([...majorSymbols, ...portfolioSymbols])];
+      const marketPrices: Record<string, number> = {};
+      await Promise.all(
+        allSymbols.map(async (symbol) => {
+          try {
+            const priceData = await fetchStockPrice(symbol);
+            if (priceData.price) marketPrices[symbol] = priceData.price;
+          } catch {}
+        })
+      );
+
+      const result = await runAnalysis(provider, "deploy", { data, marketPrices });
+      if (result.error) {
+        return res.status(503).json(result);
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
+
+  // Per-provider compare stocks
+  app.post("/api/ai/:provider/compare-stocks", async (req, res) => {
+    const provider = req.params.provider as ProviderName;
+    if (!PROVIDERS[provider]) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+    if (!PROVIDERS[provider].available) {
+      return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
+    }
+    const { symbols, portfolio, amountEGP } = req.body;
+    if (!symbols || !Array.isArray(symbols) || symbols.length < 2 || symbols.length > 3) {
+      return res.status(400).json({ error: "Provide 2-3 stock symbols to compare" });
+    }
+    if (!portfolio?.holdings) {
+      return res.status(400).json({ error: "Portfolio data required" });
+    }
+
+    try {
+      const stockData = await Promise.all(
+        symbols.map(async (symbol: string) => {
+          const priceData = await fetchStockPrice(symbol);
+          const financials = await fetchStockFinancials(symbol);
+          return {
+            symbol,
+            nameEn: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
+            currentPrice: priceData.price || 0,
+            peRatio: financials.peRatio,
+            eps: financials.eps || (financials.peRatio && priceData.price && financials.peRatio > 0 ? priceData.price / financials.peRatio : null),
+            dividendYield: financials.dividendYield,
+            bookValue: financials.bookValue,
+            sector: undefined,
+          };
+        })
+      );
+
+      const compareData = { symbols, stockData, portfolio, amountEGP: amountEGP || undefined };
+      const result = await runAnalysis(provider, "compare", { data: compareData });
+      if (result.error) {
+        return res.status(503).json(result);
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Analysis failed" });
     }
   });
 
