@@ -13,7 +13,7 @@ console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
-const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const GEMINI_MODEL = "gemini-2.5-pro";
 
 async function callGeminiWithRetry(
   prompt: string,
