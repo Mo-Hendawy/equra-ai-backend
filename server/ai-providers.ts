@@ -63,10 +63,10 @@ interface ProviderConfig {
 
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
-  deepseek: { name: "DeepSeek V3 (OpenRouter)", model: "deepseek/deepseek-chat-v3-0324:free" },
-  kimi: { name: "Kimi K2 (OpenRouter)", model: "moonshotai/kimi-k2:free" },
+  deepseek: { name: "DeepSeek V3 (OpenRouter)", model: "deepseek/deepseek-chat-v3-0324" },
+  kimi: { name: "Kimi K2.5 (OpenRouter)", model: "moonshotai/kimi-k2.5" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b-versatile" },
+  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
@@ -88,7 +88,7 @@ async function callGemini(prompt: string): Promise<string> {
   if (!client) throw new Error("Gemini API key not configured");
   const model = client.getGenerativeModel({
     model: PROVIDERS.gemini.model,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
   });
   const result = await model.generateContent(prompt);
   return result.response.text();
