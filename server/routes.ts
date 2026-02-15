@@ -5,7 +5,7 @@ import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
-import { runAnalysis, getAvailableProviders, PROVIDERS, type ProviderName } from "./ai-providers";
+import { runAnalysis, getAvailableProviders, PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -1211,7 +1211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!PROVIDERS[provider]) {
       return res.status(400).json({ error: `Unknown provider: ${provider}` });
     }
-    if (!PROVIDERS[provider].available) {
+    if (!isProviderConfigured(provider)) {
       return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
     }
     const portfolioData = req.body;
@@ -1235,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!PROVIDERS[provider]) {
       return res.status(400).json({ error: `Unknown provider: ${provider}` });
     }
-    if (!PROVIDERS[provider].available) {
+    if (!isProviderConfigured(provider)) {
       return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
     }
     const data = req.body;
@@ -1274,7 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!PROVIDERS[provider]) {
       return res.status(400).json({ error: `Unknown provider: ${provider}` });
     }
-    if (!PROVIDERS[provider].available) {
+    if (!isProviderConfigured(provider)) {
       return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
     }
     const { symbols, portfolio, amountEGP } = req.body;

@@ -5,28 +5,43 @@ import * as path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
-// ─── Provider Config ───
+// ─── Provider Config (lazy - reads env vars fresh each time) ───
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
-const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
-const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY || "";
+function getGeminiClient() {
+  const key = process.env.GEMINI_API_KEY || "";
+  return key ? new GoogleGenerativeAI(key) : null;
+}
 
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+function getDeepSeekClient() {
+  const key = process.env.DEEPSEEK_API_KEY || "";
+  return key ? new OpenAI({ apiKey: key, baseURL: "https://api.deepseek.com" }) : null;
+}
 
-const deepseek = DEEPSEEK_API_KEY
-  ? new OpenAI({ apiKey: DEEPSEEK_API_KEY, baseURL: "https://api.deepseek.com" })
-  : null;
+function getGroqClient() {
+  const key = process.env.GROQ_API_KEY || "";
+  return key ? new OpenAI({ apiKey: key, baseURL: "https://api.groq.com/openai/v1" }) : null;
+}
 
-const groq = GROQ_API_KEY
-  ? new OpenAI({ apiKey: GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" })
-  : null;
+function getCerebrasClient() {
+  const key = process.env.CEREBRAS_API_KEY || "";
+  return key ? new OpenAI({ apiKey: key, baseURL: "https://api.cerebras.ai/v1" }) : null;
+}
 
-const cerebras = CEREBRAS_API_KEY
-  ? new OpenAI({ apiKey: CEREBRAS_API_KEY, baseURL: "https://api.cerebras.ai/v1" })
-  : null;
+export function isProviderConfigured(provider: ProviderName): boolean {
+  return isProviderAvailable(provider);
+}
 
-console.log(`AI Providers loaded: Gemini=${!!genAI}, DeepSeek=${!!deepseek}, Groq=${!!groq}, Cerebras=${!!cerebras}`);
+function isProviderAvailable(provider: ProviderName): boolean {
+  switch (provider) {
+    case "gemini": return !!(process.env.GEMINI_API_KEY);
+    case "deepseek": return !!(process.env.DEEPSEEK_API_KEY);
+    case "groq": return !!(process.env.GROQ_API_KEY);
+    case "cerebras": return !!(process.env.CEREBRAS_API_KEY);
+    default: return false;
+  }
+}
+
+console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, DeepSeek=${!!process.env.DEEPSEEK_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
 
 export type ProviderName = "gemini" | "deepseek" | "groq" | "cerebras";
 
@@ -36,11 +51,11 @@ interface ProviderConfig {
   available: boolean;
 }
 
-export const PROVIDERS: Record<ProviderName, ProviderConfig> = {
-  gemini: { name: "Gemini 2.5 Pro", model: "gemini-2.5-pro", available: !!genAI },
-  deepseek: { name: "DeepSeek V3", model: "deepseek-chat", available: !!deepseek },
-  groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct", available: !!groq },
-  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b", available: !!cerebras },
+export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
+  gemini: { name: "Gemini 2.5 Pro", model: "gemini-2.5-pro" },
+  deepseek: { name: "DeepSeek V3", model: "deepseek-chat" },
+  groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
+  cerebras: { name: "Llama 3.3 70B (Cerebras)", model: "llama-3.3-70b" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
@@ -58,8 +73,9 @@ function cleanJsonResponse(text: string): string {
 // ─── Core: call a specific provider ───
 
 async function callGemini(prompt: string): Promise<string> {
-  if (!genAI) throw new Error("Gemini API key not configured");
-  const model = genAI.getGenerativeModel({
+  const client = getGeminiClient();
+  if (!client) throw new Error("Gemini API key not configured");
+  const model = client.getGenerativeModel({
     model: PROVIDERS.gemini.model,
     generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
   });
@@ -111,15 +127,21 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
   switch (provider) {
     case "gemini":
       return callWithRetry(() => callGemini(prompt));
-    case "deepseek":
-      if (!deepseek) throw new Error("DeepSeek API key not configured");
-      return callWithRetry(() => callOpenAICompatible(deepseek!, PROVIDERS.deepseek.model, prompt));
-    case "groq":
-      if (!groq) throw new Error("Groq API key not configured");
-      return callWithRetry(() => callOpenAICompatible(groq!, PROVIDERS.groq.model, prompt));
-    case "cerebras":
-      if (!cerebras) throw new Error("Cerebras API key not configured");
-      return callWithRetry(() => callOpenAICompatible(cerebras!, PROVIDERS.cerebras.model, prompt));
+    case "deepseek": {
+      const client = getDeepSeekClient();
+      if (!client) throw new Error("DeepSeek API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.deepseek.model, prompt));
+    }
+    case "groq": {
+      const client = getGroqClient();
+      if (!client) throw new Error("Groq API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.groq.model, prompt));
+    }
+    case "cerebras": {
+      const client = getCerebrasClient();
+      if (!client) throw new Error("Cerebras API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.cerebras.model, prompt));
+    }
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -291,7 +313,7 @@ export async function runAnalysis(
   const config = PROVIDERS[provider];
   const start = Date.now();
 
-  if (!config.available) {
+  if (!isProviderAvailable(provider)) {
     return {
       provider,
       providerName: config.name,
@@ -337,5 +359,5 @@ export async function runAnalysis(
 }
 
 export function getAvailableProviders(): ProviderName[] {
-  return (Object.keys(PROVIDERS) as ProviderName[]).filter((p) => PROVIDERS[p].available);
+  return (Object.keys(PROVIDERS) as ProviderName[]).filter((p) => isProviderAvailable(p));
 }
