@@ -9,7 +9,7 @@ import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type 
 import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
 import { manusWebhookHandler } from "./manus-webhook-handler";
 
-const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
+const EODHD_API_TOKEN = "69929f8cb2ee28.39159135";
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
 const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
