@@ -12,12 +12,14 @@ const MANUS_BASE_URL = "https://api.manus.ai";
 const RAILWAY_PUBLIC_URL = process.env.RAILWAY_PUBLIC_URL || "";
 
 const getManusClient = () => {
-  if (!MANUS_API_KEY) {
+  const key = process.env.MANUS_API_KEY || "";
+  console.log("MANUS_API_KEY (first 5 chars) in getManusClient:", key.substring(0, 5));
+  if (!key) {
     console.error("Manus API key not configured");
     return null;
   }
   return new OpenAI({
-    apiKey: MANUS_API_KEY,
+    apiKey: key,
     baseURL: MANUS_BASE_URL,
   });
 };
