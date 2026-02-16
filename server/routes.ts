@@ -6,6 +6,8 @@ import { getCached, setCache, getStaleCache } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
 import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
+import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
+import { manusWebhookHandler } from "./manus-webhook-handler";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -1399,6 +1401,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message || "Analysis failed" });
     }
   });
+
+  // Manus AI Deep Analysis endpoints
+  app.post("/api/manus/analyze/:symbol", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+
+    try {
+      const [priceData, financials] = await Promise.all([
+        fetchStockPrice(symbol),
+        fetchStockFinancials(symbol),
+      ]);
+
+      const eps = financials.eps || (financials.peRatio && priceData.price && financials.peRatio > 0 ? priceData.price / financials.peRatio : null);
+      let historicalPrices: number[] = [];
+      let sharpeRatio: number | null = null;
+      let sortinoRatio: number | null = null;
+      let priceChange30d: number | null = null;
+      let priceChange90d: number | null = null;
+
+      try {
+        historicalPrices = await fetchHistoricalPrices(symbol, 252);
+        if (historicalPrices.length > 1) {
+          const returns = calculateReturns(historicalPrices);
+          if (returns.length > 0) {
+            sharpeRatio = calculateSharpeRatio(returns, 0.10);
+            sortinoRatio = calculateSortinoRatio(returns, 0.10);
+          }
+        }
+        if (historicalPrices.length > 30 && priceData.price) {
+          const price30dAgo = historicalPrices[historicalPrices.length - 30];
+          priceChange30d = ((priceData.price - price30dAgo) / price30dAgo) * 100;
+        }
+        if (historicalPrices.length > 90 && priceData.price) {
+          const price90dAgo = historicalPrices[historicalPrices.length - 90];
+          priceChange90d = ((priceData.price - price90dAgo) / price90dAgo) * 100;
+        }
+      } catch {}
+
+      const stockDataForAI: ManusAnalysisRequest = {
+        symbol,
+        companyName: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
+        currentPrice: priceData.price || 0,
+        volume: priceData.volume,
+        eps,
+        peRatio: financials.peRatio,
+        bookValue: financials.bookValue,
+        priceToBook: financials.bookValue && priceData.price ? priceData.price / financials.bookValue : null,
+        dividendYield: financials.dividendYield || null,
+        sharpeRatio,
+        sortinoRatio,
+        historicalPrices: historicalPrices.slice(-60),
+        priceChange30d,
+        priceChange90d,
+        priceSource: priceData.source,
+        fundamentalsSource: financials.source,
+      };
+
+      const task = await createManusAnalysis(symbol, stockDataForAI);
+      if (task) {
+        res.json({ taskId: task.taskId, status: "pending", taskUrl: task.taskUrl });
+      } else {
+        res.status(500).json({ error: "Failed to initiate Manus analysis" });
+      }
+    } catch (error: any) {
+      console.error("Manus analysis initiation error:", error);
+      res.status(500).json({ error: error.message || "Failed to initiate Manus analysis" });
+    }
+  });
+
+  app.get("/api/manus/status/:symbol", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    try {
+      const status = await getManusTaskStatus(symbol);
+      if (status) {
+        res.json(status);
+      } else {
+        res.status(404).json({ error: "Manus task not found for this symbol" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to get Manus task status" });
+    }
+  });
+
+  app.get("/api/manus/result/:symbol", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    try {
+      const result = await getManusAnalysisResult(symbol);
+      if (result) {
+        res.json(result);
+      } else {
+        res.status(404).json({ error: "Manus analysis result not found or still pending" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to get Manus analysis result" });
+    }
+  });
+
+  // Manus Webhook Endpoint
+  app.post("/api/manus/webhook", manusWebhookHandler);
+
+  // Register Manus webhook on startup
+  registerManusWebhook();
 
   const httpServer = createServer(app);
 
