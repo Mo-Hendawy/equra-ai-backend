@@ -319,11 +319,116 @@ IMPORTANT:
 Respond ONLY with valid JSON, no markdown.`;
 }
 
+// ─── Stock Analysis Prompt (single stock) ───
+
+export function buildStockAnalysisPrompt(stockData: any): string {
+  return `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.
+
+STOCK DATA:
+${JSON.stringify(stockData, null, 2)}
+
+ANALYSIS REQUIREMENTS:
+
+1. **Market Overview**: Current status with 52-week range (if available), trading volume, P/E ratio, recent performance
+
+2. **Fair Value Analysis**: 
+   - Calculate using multiple methods (P/E based, P/B, Graham Formula, Analyst Average if applicable)
+   - Provide Conservative, Target, and Optimistic fair values
+   - Explain if stock is trading at discount/premium and why
+
+3. **Entry Zones**: Define clear price zones:
+   - Strong Buy Zone: Significant discount (typically 20-30% below fair value)
+   - Buy Zone: Moderate discount (10-20% below fair value)
+   - Hold Zone: Around fair value (±10%)
+   - Sell Zone: Premium (10-20% above fair value)
+   - Strong Sell Zone: Significant premium (>20% above fair value)
+   - For each zone, explain the reasoning
+
+4. **Price Targets**: Conservative, Moderate, and Optimistic targets with timeframes
+
+5. **Risk Assessment**: Based on Sharpe/Sortino ratios, volatility, and fundamentals
+
+6. **Detailed Analysis**: Long-form explanation covering:
+   - Valuation rationale
+   - Why current price represents opportunity/risk
+   - Key metrics interpretation
+   - Market conditions impact
+   - What levels to watch for entry/exit
+
+IMPORTANT CONTEXT:
+- Egyptian Exchange (EGX) - emerging market with higher volatility
+- Currency: EGP (Egyptian Pound)
+- If fundamentals missing, use technical analysis and price trends
+- Be specific with numbers and reasoning
+- Make the analysis detailed and actionable
+
+RESPONSE FORMAT (JSON):
+{
+  "fairValueEstimate": <number or null>,
+  "fairValueRange": {"min": <number>, "max": <number>},
+  "strongBuyZone": {"min": 0, "max": <number>},
+  "buyZone": {"min": <number>, "max": <number>},
+  "holdZone": {"min": <number>, "max": <number>},
+  "sellZone": {"min": <number>, "max": <number>},
+  "strongSellZone": {"min": <number>, "max": <number>},
+  "firstTarget": <number>,
+  "secondTarget": <number>,
+  "thirdTarget": <number>,
+  "recommendation": "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell",
+  "confidence": "High" | "Medium" | "Low",
+  "reasoning": "<DETAILED multi-paragraph analysis covering market overview, fair value rationale, entry zones explanation, risk factors, and actionable recommendations. Make this at least 300-500 words with specific numbers and detailed reasoning>",
+  "riskLevel": "Low" | "Medium" | "High",
+  "keyPoints": [
+    "<Detailed point about current market position with numbers>",
+    "<Detailed point about valuation with specific fair value breakdown>",
+    "<Detailed point about entry zones with price levels>",
+    "<Detailed point about risk factors and metrics>",
+    "<Detailed point about what to watch for and action items>"
+  ],
+  "analysisMethod": "<Detailed description of all valuation methods used and how you arrived at the conclusion>",
+  "valuationStatus": "Undervalued" | "Fair" | "Overvalued",
+  "simpleExplanation": [
+    "<Simple bullet 1: Explain valuation in plain language with numbers>",
+    "<Simple bullet 2: Explain risk/return or dividend (MUST include dividend if yield exists)>",
+    "<Simple bullet 3: Explain price position or opportunity>"
+  ],
+  "riskSignals": [
+    "<Risk warning 1 if any, e.g., 'High PE ratio'>",
+    "<Risk warning 2 if any>",
+    "<Risk warning 3 if any>"
+  ]
+}
+
+Make the reasoning field VERY DETAILED - include:
+- Market Overview paragraph
+- Fair Value Analysis paragraph with multiple methods
+- Entry Zones paragraph explaining each level
+- Risk Assessment paragraph
+- Conclusion with actionable recommendations
+
+IMPORTANT for simpleExplanation:
+- Keep each bullet short and clear (max 25 words)
+- No finance jargon
+- If dividend yield exists, ALWAYS include it in one bullet
+- Use actual numbers from the data
+
+IMPORTANT for riskSignals:
+- List actual warning signs from the data (high PE, low dividend, overvaluation, etc.)
+- Keep phrases short (max 10 words each)
+- If no significant risks, return empty array []
+
+Respond ONLY with valid JSON, no markdown formatting or additional text.`;
+}
+
+// ─── Trusted providers for stock analysis ───
+
+export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "kimi"];
+
 // ─── Execute analysis for a single provider ───
 
 export async function runAnalysis(
   provider: ProviderName,
-  type: "portfolio" | "deploy" | "compare",
+  type: "portfolio" | "deploy" | "compare" | "stock",
   promptData: { data: any; marketPrices?: Record<string, number> }
 ): Promise<{ provider: ProviderName; providerName: string; model: string; result: any; error?: string; durationMs: number }> {
   const config = PROVIDERS[provider];
@@ -351,6 +456,9 @@ export async function runAnalysis(
         break;
       case "compare":
         prompt = buildCompareStocksPrompt(promptData.data);
+        break;
+      case "stock":
+        prompt = buildStockAnalysisPrompt(promptData.data);
         break;
     }
 

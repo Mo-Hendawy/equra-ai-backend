@@ -5,7 +5,7 @@ import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
-import { runAnalysis, getAvailableProviders, PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
+import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
 
 const EODHD_API_TOKEN = "697f54f83d2b52.60862429";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -1190,6 +1190,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Compare stocks error:", error);
       res.status(500).json({ error: "Failed to compare stocks" });
     }
+  });
+
+  // ─── Multi-Provider Stock Analysis ───
+
+  // Per-provider single stock analysis
+  app.get("/api/ai/:provider/stock-analysis/:symbol", async (req, res) => {
+    const provider = req.params.provider as ProviderName;
+    const symbol = req.params.symbol.toUpperCase();
+
+    if (!PROVIDERS[provider]) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+    if (!isProviderConfigured(provider)) {
+      return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
+    }
+
+    try {
+      const [priceData, financials] = await Promise.all([
+        fetchStockPrice(symbol),
+        fetchStockFinancials(symbol),
+      ]);
+
+      const eps = financials.eps || (financials.peRatio && priceData.price && financials.peRatio > 0 ? priceData.price / financials.peRatio : null);
+      let historicalPrices: number[] = [];
+      let sharpeRatio: number | null = null;
+      let sortinoRatio: number | null = null;
+      let priceChange30d: number | null = null;
+      let priceChange90d: number | null = null;
+
+      try {
+        historicalPrices = await fetchHistoricalPrices(symbol, 252);
+        if (historicalPrices.length > 1) {
+          const returns = calculateReturns(historicalPrices);
+          if (returns.length > 0) {
+            sharpeRatio = calculateSharpeRatio(returns, 0.10);
+            sortinoRatio = calculateSortinoRatio(returns, 0.10);
+          }
+        }
+        if (historicalPrices.length > 30 && priceData.price) {
+          const price30dAgo = historicalPrices[historicalPrices.length - 30];
+          priceChange30d = ((priceData.price - price30dAgo) / price30dAgo) * 100;
+        }
+        if (historicalPrices.length > 90 && priceData.price) {
+          const price90dAgo = historicalPrices[historicalPrices.length - 90];
+          priceChange90d = ((priceData.price - price90dAgo) / price90dAgo) * 100;
+        }
+      } catch {}
+
+      const stockDataForAI = {
+        symbol,
+        companyName: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
+        currentPrice: priceData.price || 0,
+        volume: priceData.volume,
+        eps,
+        peRatio: financials.peRatio,
+        bookValue: financials.bookValue,
+        priceToBook: financials.bookValue && priceData.price ? priceData.price / financials.bookValue : null,
+        dividendYield: financials.dividendYield || null,
+        sharpeRatio,
+        sortinoRatio,
+        historicalPrices: historicalPrices.slice(-60),
+        priceChange30d,
+        priceChange90d,
+        priceSource: priceData.source,
+        fundamentalsSource: financials.source,
+      };
+
+      const result = await runAnalysis(provider, "stock", { data: stockDataForAI });
+      if (result.error) {
+        return res.status(503).json(result);
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Stock analysis failed" });
+    }
+  });
+
+  // Get trusted providers for stock analysis
+  app.get("/api/ai/trusted-providers", (_req, res) => {
+    const available = TRUSTED_PROVIDERS.filter((p) => isProviderConfigured(p));
+    const providers = available.map((p) => ({
+      id: p,
+      name: PROVIDERS[p].name,
+      model: PROVIDERS[p].model,
+    }));
+    res.json({ providers });
   });
 
   // ─── Multi-Provider AI Endpoints ───
