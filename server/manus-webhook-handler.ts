@@ -1,62 +1,67 @@
 import { Request, Response } from "express";
-import { saveManusAnalysisResult, updateManusTaskStatus } from "./manus-service";
+import { saveManusAnalysisResult, updateManusTaskStatus, extractManusOutput, parseManusReport } from "./manus-service";
 
-// Placeholder for extracting symbol from task ID or metadata
 function extractSymbolFromTask(task: any): string | null {
-  // Assuming task_id format or metadata will contain the symbol
-  // For now, let's assume the prompt contains the symbol
-  const prompt = task.instructions || "";
-  const match = prompt.match(/\((\w+)\)/); // Extract symbol from (SYMBOL)
-  return match ? match[1] : null;
+  // Try metadata first, then instructions/prompt
+  const prompt = task.instructions || task.prompt || "";
+  // Match (SYMBOL) pattern - e.g. "Telecom Egypt (ETEL)"
+  const match = prompt.match(/\(([A-Z]{3,5})\)/);
+  if (match) return match[1];
+
+  // Try extracting from output messages (assistant might mention it)
+  if (task.output && Array.isArray(task.output)) {
+    for (const msg of task.output) {
+      if (msg.role === "user" && msg.content) {
+        const text = Array.isArray(msg.content) ? msg.content[0]?.text || "" : msg.content;
+        const m = text.match(/\(([A-Z]{3,5})\)/);
+        if (m) return m[1];
+      }
+    }
+  }
+
+  return null;
 }
 
 export async function manusWebhookHandler(req: Request, res: Response) {
   const event = req.body;
-  console.log("Received Manus webhook event:", event.event_type, event.task_id);
+  console.log("Received Manus webhook event:", JSON.stringify(event).substring(0, 500));
 
-  if (!event.task_id || !event.event_type || !event.task) {
-    return res.status(400).send("Missing task_id, event_type, or task in webhook payload");
+  const task_id = event.task_id || event.id;
+  const event_type = event.event_type || event.type;
+  const task = event.task || event;
+
+  if (!task_id || !event_type) {
+    return res.status(400).send("Missing task_id or event_type in webhook payload");
   }
 
-  const { task_id, event_type, task } = event;
   const symbol = extractSymbolFromTask(task);
 
   if (!symbol) {
-    console.error(`Could not extract symbol from Manus task ${task_id}. Skipping.`);
+    console.error(`Could not extract symbol from Manus task ${task_id}. Payload keys: ${Object.keys(task).join(", ")}`);
     return res.status(400).send("Could not extract symbol from task");
   }
 
   try {
     if (event_type === "task.completed") {
-      // Extract the relevant output from the task object
-      const rawOutput = task.output?.map((msg: any) => msg.content?.[0]?.text || "").join("\n").trim();
+      const output = task.output;
+      const rawOutput = extractManusOutput(output);
 
-      // Basic attempt to parse structured data from markdown. Manus should ideally return structured JSON.
-      // For now, we'll store the full markdown report and try to extract a summary.
-      const summaryMatch = rawOutput.match(/## Summary\n\n([\s\S]*?)(?:\n##|$)/);
-      const summary = summaryMatch ? summaryMatch[1].trim() : rawOutput.substring(0, 200) + "...";
-
-      // Attempt to extract recommendation and fair value (will need more robust parsing later)
-      const recommendationMatch = rawOutput.match(/Recommendation:\s*([\w\s]+)/i);
-      const fairValueMatch = rawOutput.match(/Fair Value Estimate:\s*([\d.,]+)\s*EGP/i);
-      
-      const result = {
-        status: "completed",
-        taskId: task_id,
-        summary,
-        detailedReport: rawOutput,
-        recommendation: recommendationMatch ? recommendationMatch[1].trim() : "N/A",
-        fairValueEstimate: fairValueMatch ? parseFloat(fairValueMatch[1].replace(/,/g, '')) : null,
-      };
-      await saveManusAnalysisResult(symbol, result);
-      console.log(`Manus task ${task_id} for ${symbol} completed. Result saved.`);
+      if (rawOutput && rawOutput.length > 50) {
+        const result = parseManusReport(rawOutput, task_id);
+        await saveManusAnalysisResult(symbol, result);
+        console.log(`Manus webhook: task ${task_id} for ${symbol} completed. Saved ${rawOutput.length} chars.`);
+      } else {
+        console.warn(`Manus webhook: task ${task_id} for ${symbol} completed but output is empty/short.`);
+        await updateManusTaskStatus(symbol, "completed", task_id);
+      }
 
     } else if (event_type === "task.failed") {
       await updateManusTaskStatus(symbol, "failed", task_id);
-      console.warn(`Manus task ${task_id} for ${symbol} failed. Status updated.`);
+      console.warn(`Manus webhook: task ${task_id} for ${symbol} failed.`);
     } else if (event_type === "task.updated") {
-      await updateManusTaskStatus(symbol, task.status, task_id);
-      console.log(`Manus task ${task_id} for ${symbol} updated to status: ${task.status}.`);
+      const newStatus = task.status || "running";
+      await updateManusTaskStatus(symbol, newStatus, task_id);
+      console.log(`Manus webhook: task ${task_id} for ${symbol} updated to: ${newStatus}`);
     }
 
     res.status(200).send("Webhook received and processed");

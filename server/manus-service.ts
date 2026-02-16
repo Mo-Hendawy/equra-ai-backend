@@ -58,9 +58,115 @@ export interface ManusAnalysisResult {
   // ... other structured data Manus might return
 }
 
-// Placeholder for caching Manus task status and results
 const MANUS_TASK_CACHE_KEY = (symbol: string) => `manus_analysis_task_${symbol}`;
 const MANUS_RESULT_CACHE_KEY = (symbol: string) => `manus_analysis_result_${symbol}`;
+
+/**
+ * Extract assistant-only text from a Manus task output array.
+ * Manus output is: TaskMessage[] where each has role ("user"|"assistant")
+ * and content: MessageContent[] with type ("output_text"|"output_file") and text.
+ * We only want assistant output_text, NOT the user prompt.
+ */
+export function extractManusOutput(output: any): string {
+  if (!output) return "";
+
+  if (typeof output === "string") return output;
+
+  if (!Array.isArray(output)) return JSON.stringify(output);
+
+  // Filter for assistant messages only (skip user messages which contain the prompt)
+  const assistantMessages = output.filter((msg: any) => msg.role === "assistant");
+
+  // Extract text content from each assistant message
+  const textParts: string[] = [];
+  for (const msg of assistantMessages) {
+    if (!msg.content || !Array.isArray(msg.content)) continue;
+    for (const item of msg.content) {
+      if (item.type === "output_text" && item.text) {
+        textParts.push(item.text);
+      }
+    }
+  }
+
+  // If we got text from structured messages, return it
+  if (textParts.length > 0) {
+    return textParts.join("\n\n").trim();
+  }
+
+  // Fallback: try getting text from any content field (less strict)
+  const fallbackParts: string[] = [];
+  for (const msg of assistantMessages.length > 0 ? assistantMessages : output) {
+    if (msg.content && Array.isArray(msg.content)) {
+      for (const item of msg.content) {
+        const text = item.text || item.content;
+        if (text && typeof text === "string") fallbackParts.push(text);
+      }
+    } else if (msg.text && typeof msg.text === "string") {
+      fallbackParts.push(msg.text);
+    }
+  }
+
+  return fallbackParts.join("\n\n").trim() || JSON.stringify(output);
+}
+
+/**
+ * Parse structured fields (summary, recommendation, fair value) from a Manus report.
+ */
+export function parseManusReport(rawOutput: string, taskId: string): any {
+  // Try multiple summary patterns
+  const summaryPatterns = [
+    /## (?:Executive )?Summary\n\n([\s\S]*?)(?:\n## |$)/i,
+    /# (?:Executive )?Summary\n\n([\s\S]*?)(?:\n# |$)/i,
+    /\*\*Summary\*\*[:\s]*([\s\S]*?)(?:\n## |\n# |\n\*\*|$)/i,
+  ];
+  let summary = "";
+  for (const pat of summaryPatterns) {
+    const match = rawOutput.match(pat);
+    if (match) { summary = match[1].trim(); break; }
+  }
+  if (!summary) {
+    // Use first ~500 chars as summary, cut at sentence boundary
+    const truncated = rawOutput.substring(0, 600);
+    const lastPeriod = truncated.lastIndexOf(".");
+    summary = lastPeriod > 100 ? truncated.substring(0, lastPeriod + 1) : truncated + "...";
+  }
+
+  // Extract recommendation
+  const recPatterns = [
+    /(?:Investment |Overall )?Recommendation[:\s]*\*?\*?(Strong Buy|Buy|Hold|Sell|Strong Sell|Overweight|Underweight|Neutral|Accumulate)/i,
+    /\*\*(?:Investment |Overall )?Recommendation[:\s]*\*?\*?\s*(Strong Buy|Buy|Hold|Sell|Strong Sell|Overweight|Underweight|Neutral|Accumulate)/i,
+    /(?:we recommend|our recommendation is|rating:)\s*(Strong Buy|Buy|Hold|Sell|Strong Sell|Overweight|Underweight|Neutral|Accumulate)/i,
+  ];
+  let recommendation = "N/A";
+  for (const pat of recPatterns) {
+    const match = rawOutput.match(pat);
+    if (match) { recommendation = match[1].trim(); break; }
+  }
+
+  // Extract fair value
+  const fvPatterns = [
+    /Fair Value(?:\s*Estimate)?[:\s]*(?:EGP\s*)?([\d.,]+)/i,
+    /(?:Intrinsic|Target)\s*(?:Value|Price)[:\s]*(?:EGP\s*)?([\d.,]+)/i,
+    /(?:EGP\s*)([\d.,]+)\s*(?:per share|\/share)/i,
+  ];
+  let fairValueEstimate: number | null = null;
+  for (const pat of fvPatterns) {
+    const match = rawOutput.match(pat);
+    if (match) {
+      const val = parseFloat(match[1].replace(/,/g, ""));
+      if (!isNaN(val) && val > 0) { fairValueEstimate = val; break; }
+    }
+  }
+
+  return {
+    status: "completed" as const,
+    taskId,
+    summary,
+    detailedReport: rawOutput,
+    recommendation,
+    fairValueEstimate,
+  };
+}
 
 /**
  * Registers our webhook URL with Manus AI.
@@ -180,29 +286,17 @@ async function pollManusTaskFromAPI(symbol: string, taskId: string, taskUrl?: st
     // Update our cache with the real status
     await setCache(MANUS_TASK_CACHE_KEY(symbol), { taskId, status, taskUrl, updatedAt: Date.now() });
 
-    // If completed, try to extract and save the result
+    // If completed, extract assistant output and save
     if (status === "completed") {
       const output = response.output || response.task?.output;
-      if (output) {
-        const rawOutput = Array.isArray(output)
-          ? output.map((msg: any) => msg.content?.[0]?.text || msg.text || "").join("\n").trim()
-          : typeof output === "string" ? output : JSON.stringify(output);
+      const rawOutput = extractManusOutput(output);
 
-        const summaryMatch = rawOutput.match(/## Summary\n\n([\s\S]*?)(?:\n##|$)/);
-        const summary = summaryMatch ? summaryMatch[1].trim() : rawOutput.substring(0, 500) + "...";
-        const recommendationMatch = rawOutput.match(/Recommendation:\s*([\w\s]+)/i);
-        const fairValueMatch = rawOutput.match(/Fair Value(?:\s*Estimate)?:\s*([\d.,]+)\s*EGP/i);
-
-        const result: any = {
-          status: "completed",
-          taskId,
-          summary,
-          detailedReport: rawOutput,
-          recommendation: recommendationMatch ? recommendationMatch[1].trim() : "N/A",
-          fairValueEstimate: fairValueMatch ? parseFloat(fairValueMatch[1].replace(/,/g, "")) : null,
-        };
+      if (rawOutput && rawOutput.length > 50) {
+        const result = parseManusReport(rawOutput, taskId);
         await saveManusAnalysisResult(symbol, result);
-        console.log(`Manus live poll: saved completed result for ${symbol}`);
+        console.log(`Manus live poll: saved completed result for ${symbol} (${rawOutput.length} chars)`);
+      } else {
+        console.warn(`Manus live poll: task completed but output is empty/short for ${symbol}`);
       }
     }
 
