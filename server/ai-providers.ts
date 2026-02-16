@@ -462,12 +462,28 @@ export async function runAnalysis(
         break;
     }
 
-    const text = await callProvider(provider, prompt);
-    const result = JSON.parse(cleanJsonResponse(text));
-    const durationMs = Date.now() - start;
-    console.log(`${config.name} ${type} completed in ${durationMs}ms`);
+    try {
+      const text = await callProvider(provider, prompt);
+      let result: any;
+      try {
+        result = JSON.parse(cleanJsonResponse(text));
+      } catch (parseError: any) {
+        console.error(`${config.name} ${type} JSON parse failed:`, parseError.message);
+        // Return a graceful error result instead of throwing
+        return {
+          provider,
+          providerName: config.name,
+          model: config.model,
+          result: null,
+          error: "Analysis failed: Invalid JSON response from model",
+          durationMs: Date.now() - start,
+        };
+      }
 
-    return { provider, providerName: config.name, model: config.model, result, durationMs };
+      const durationMs = Date.now() - start;
+      console.log(`${config.name} ${type} completed in ${durationMs}ms`);
+
+      return { provider, providerName: config.name, model: config.model, result, durationMs };
   } catch (error: any) {
     const durationMs = Date.now() - start;
     console.error(`${config.name} ${type} failed in ${durationMs}ms:`, error.message);

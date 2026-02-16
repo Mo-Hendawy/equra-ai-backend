@@ -389,13 +389,17 @@ async function fetchCNBCPrice(symbol: string): Promise<StockPrice | null> {
 }
 
 async function fetchStockPrice(symbol: string): Promise<StockPrice> {
-  // Priority: EODHD (with cache) → TradingView → CNBC → Stale Cache
-  let priceData = await fetchEODHDPrice(symbol);
-  
+  // EODHD_API_TOKEN is assumed to be present and valid if not empty. If it is empty
+  // or the API fails, fallbacks will be used.
+  const isEodhdAvailable = !!EODHD_API_TOKEN;
+
+  // Priority: EODHD (if available) → TradingView → CNBC → Stale Cache
+  let priceData = isEodhdAvailable ? await fetchEODHDPrice(symbol) : null;
+
   if (!priceData) {
     priceData = await fetchTradingViewPrice(symbol);
   }
-  
+
   if (!priceData) {
     priceData = await fetchCNBCPrice(symbol);
   }
@@ -728,10 +732,14 @@ async function fetchMubasherFinancials(symbol: string): Promise<StockFinancials 
 }
 
 async function fetchStockFinancials(symbol: string): Promise<StockFinancials & { dividendYield?: number | null }> {
-  // Priority: EODHD (with cache) → TradingView → Mubasher → EGX Static → Stale Cache
-  
+  // EODHD_API_TOKEN is assumed to be present and valid if not empty. If it is empty
+  // or the API fails, fallbacks will be used.
+  const isEodhdAvailable = !!EODHD_API_TOKEN;
+
+  // Priority: EODHD (if available) → TradingView → Mubasher → EGX Static → Stale Cache
+
   // Try EODHD first (includes caching)
-  let eodhd = await fetchEODHDFundamentals(symbol);
+  let eodhd = isEodhdAvailable ? await fetchEODHDFundamentals(symbol) : null;
   if (eodhd && (eodhd.eps || eodhd.peRatio)) {
     console.log(`Using EODHD data for ${symbol}: EPS=${eodhd.eps}, P/E=${eodhd.peRatio}, DY=${eodhd.dividendYield}%`);
     return eodhd;

@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import * as dotenv from "dotenv";
 import * as path from "path";
 import { setCache, getCached } from "./api-cache";
@@ -11,18 +10,26 @@ const MANUS_BASE_URL = "https://api.manus.ai";
 // We need the Railway public URL to register the webhook
 const RAILWAY_PUBLIC_URL = process.env.RAILWAY_PUBLIC_URL || "";
 
-const getManusClient = () => {
-  const key = process.env.MANUS_API_KEY || "";
-  console.log("MANUS_API_KEY (first 5 chars) in getManusClient:", key.substring(0, 5));
-  if (!key) {
-    console.error("Manus API key not configured");
-    return null;
-  }
-  return new OpenAI({
-    apiKey: key,
-    baseURL: MANUS_BASE_URL,
+// Use native fetch for Manus API, as it's not OpenAI-compatible endpoint-wise
+async function manusApiFetch<T>(endpoint: string, method: string, data?: any): Promise<T> {
+  const headers: Record<string, string> = {
+    "API_KEY": MANUS_API_KEY,
+    "Content-Type": "application/json",
+  };
+
+  const response = await fetch(`${MANUS_BASE_URL}${endpoint}`, {
+    method,
+    headers,
+    body: data ? JSON.stringify(data) : undefined,
   });
-};
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Manus API Error ${response.status}: ${errorBody}`);
+  }
+
+  return response.json();
+}
 
 export interface ManusAnalysisRequest {
   symbol: string;
@@ -69,33 +76,32 @@ export async function registerManusWebhook() {
     return;
   }
 
-  const client = getManusClient();
-  if (!client) return;
-
   const webhookUrl = `${RAILWAY_PUBLIC_URL}/api/manus/webhook`;
 
   try {
-    // First, list existing webhooks to avoid duplicates
-    const existingWebhooks = await client.webhooks.list(); // Assuming a list endpoint exists
-    const webhookExists = existingWebhooks.data.some((wh: any) => wh.url === webhookUrl);
-
-    if (!webhookExists) {
-      await client.webhooks.create({
+    // Manus API does not have a /v1/webhooks GET endpoint for listing, based on previous testing.
+    // We will attempt to create the webhook. If it already exists, Manus will return an error.
+    await manusApiFetch("/v1/webhooks", "POST", {
+      webhook: {
         url: webhookUrl,
-        event_types: ["task.completed", "task.failed", "task.updated"], // Listen for relevant events
-      });
-      console.log(`Manus webhook registered: ${webhookUrl}`);
-    } else {
+        event_types: ["task.completed", "task.failed", "task.updated"],
+      },
+    });
+    console.log(`Manus webhook registered: ${webhookUrl}`);
+  } catch (error: any) {
+    if (error.message.includes("webhook URL already exists")) {
       console.log(`Manus webhook already registered: ${webhookUrl}`);
+    } else {
+      console.error("Failed to register Manus webhook:", error);
     }
-  } catch (error) {
-    console.error("Failed to register Manus webhook:", error);
   }
 }
 
 export async function createManusAnalysis(symbol: string, stockData: ManusAnalysisRequest): Promise<{ taskId: string; taskUrl: string; } | null> {
-  const client = getManusClient();
-  if (!client) return null;
+  if (!MANUS_API_KEY) {
+    console.error("Manus API key not configured. Cannot create task.");
+    return null;
+  }
 
   const prompt = `Perform a deep dive investment analysis on the Egyptian Exchange (EGX) stock: ${stockData.companyName} (${symbol}).
 
@@ -117,7 +123,7 @@ Output ONLY a well-structured markdown report, including key sections and a summ
 Ensure all numbers are clearly cited.`;
 
   try {
-    const response = await client.tasks.create({
+    const response: any = await manusApiFetch("/v1/tasks", "POST", {
       prompt,
       agentProfile: "manus-1.6", // Use the most capable agent profile
       taskMode: "agent",        // Enable full autonomous agent capabilities
