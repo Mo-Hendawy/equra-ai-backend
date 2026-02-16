@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
-import { setCache, getCached } from "./api-cache";
+import { setCache, getCached, getStaleCache } from "./api-cache";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -149,7 +149,68 @@ export async function getManusAnalysisResult(symbol: string): Promise<ManusAnaly
 }
 
 export async function getManusTaskStatus(symbol: string): Promise<{ taskId: string; status: string; taskUrl?: string; } | null> {
-  return getCached<{ taskId: string; status: string; taskUrl?: string; }>(MANUS_TASK_CACHE_KEY(symbol));
+  // First check cache
+  const cached = await getCached<{ taskId: string; status: string; taskUrl?: string; }>(MANUS_TASK_CACHE_KEY(symbol));
+
+  // Also check stale cache in case the 24h cache expired but we still have the task info
+  const staleOrCached = cached || await getStaleCache<{ taskId: string; status: string; taskUrl?: string; }>(MANUS_TASK_CACHE_KEY(symbol));
+
+  if (!staleOrCached) return null;
+
+  // If task is still pending/running, actively poll the Manus API for the real status
+  if (staleOrCached.status === "pending" || staleOrCached.status === "running") {
+    const liveStatus = await pollManusTaskFromAPI(symbol, staleOrCached.taskId, staleOrCached.taskUrl);
+    if (liveStatus) return liveStatus;
+  }
+
+  return staleOrCached;
+}
+
+async function pollManusTaskFromAPI(symbol: string, taskId: string, taskUrl?: string): Promise<{ taskId: string; status: string; taskUrl?: string; } | null> {
+  if (!MANUS_API_KEY || !taskId) return null;
+
+  try {
+    const response: any = await manusApiFetch(`/v1/tasks/${taskId}`, "GET");
+    const status = response.status || response.task?.status;
+
+    if (!status) return null;
+
+    console.log(`Manus live poll for ${symbol} (${taskId}): status=${status}`);
+
+    // Update our cache with the real status
+    await setCache(MANUS_TASK_CACHE_KEY(symbol), { taskId, status, taskUrl, updatedAt: Date.now() });
+
+    // If completed, try to extract and save the result
+    if (status === "completed") {
+      const output = response.output || response.task?.output;
+      if (output) {
+        const rawOutput = Array.isArray(output)
+          ? output.map((msg: any) => msg.content?.[0]?.text || msg.text || "").join("\n").trim()
+          : typeof output === "string" ? output : JSON.stringify(output);
+
+        const summaryMatch = rawOutput.match(/## Summary\n\n([\s\S]*?)(?:\n##|$)/);
+        const summary = summaryMatch ? summaryMatch[1].trim() : rawOutput.substring(0, 500) + "...";
+        const recommendationMatch = rawOutput.match(/Recommendation:\s*([\w\s]+)/i);
+        const fairValueMatch = rawOutput.match(/Fair Value(?:\s*Estimate)?:\s*([\d.,]+)\s*EGP/i);
+
+        const result: any = {
+          status: "completed",
+          taskId,
+          summary,
+          detailedReport: rawOutput,
+          recommendation: recommendationMatch ? recommendationMatch[1].trim() : "N/A",
+          fairValueEstimate: fairValueMatch ? parseFloat(fairValueMatch[1].replace(/,/g, "")) : null,
+        };
+        await saveManusAnalysisResult(symbol, result);
+        console.log(`Manus live poll: saved completed result for ${symbol}`);
+      }
+    }
+
+    return { taskId, status, taskUrl };
+  } catch (error: any) {
+    console.error(`Manus live poll failed for ${symbol}:`, error.message);
+    return null;
+  }
 }
 
 export async function updateManusTaskStatus(symbol: string, status: string, taskId: string, taskUrl?: string) {
