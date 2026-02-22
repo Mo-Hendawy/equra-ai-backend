@@ -74,12 +74,48 @@ export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> &
 
 function cleanJsonResponse(text: string): string {
   let cleaned = text.trim();
-  // Remove thinking tags if present (DeepSeek sometimes adds these)
   cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  if (cleaned.startsWith("```json")) cleaned = cleaned.substring(7);
-  else if (cleaned.startsWith("```")) cleaned = cleaned.substring(3);
-  if (cleaned.endsWith("```")) cleaned = cleaned.substring(0, cleaned.length - 3);
-  return cleaned.trim();
+  // Strip markdown code fences (```json ... ``` or ``` ... ```)
+  const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
+  } else {
+    if (cleaned.startsWith("```json")) cleaned = cleaned.substring(7);
+    else if (cleaned.startsWith("```")) cleaned = cleaned.substring(3);
+    if (cleaned.endsWith("```")) cleaned = cleaned.substring(0, cleaned.length - 3);
+    cleaned = cleaned.trim();
+  }
+  // Extract the JSON object/array even if there's surrounding text
+  const jsonStart = cleaned.indexOf("{");
+  const jsonArrStart = cleaned.indexOf("[");
+  const start = jsonStart >= 0 && (jsonArrStart < 0 || jsonStart < jsonArrStart) ? jsonStart : jsonArrStart;
+  if (start > 0) cleaned = cleaned.substring(start);
+
+  // Try to fix truncated JSON by closing open braces/brackets
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    let fixed = cleaned;
+    let openBraces = 0, openBrackets = 0;
+    let inString = false, escape = false;
+    for (const ch of fixed) {
+      if (escape) { escape = false; continue; }
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") openBraces++;
+      else if (ch === "}") openBraces--;
+      else if (ch === "[") openBrackets++;
+      else if (ch === "]") openBrackets--;
+    }
+    if (inString) fixed += '"';
+    // Remove trailing comma before closing
+    fixed = fixed.replace(/,\s*$/, "");
+    while (openBrackets > 0) { fixed += "]"; openBrackets--; }
+    while (openBraces > 0) { fixed += "}"; openBraces--; }
+    return fixed;
+  }
 }
 
 // ─── Core: call a specific provider ───
@@ -424,7 +460,7 @@ Respond ONLY with valid JSON, no markdown formatting or additional text.`;
 
 // ─── Trusted providers for stock analysis ───
 
-export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "kimi"];
+export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "groq"];
 
 // ─── Execute analysis for a single provider ───
 
@@ -469,20 +505,27 @@ export async function runAnalysis(
   }
 
   try {
-    const text = await callProvider(provider, prompt);
     let result: any;
-    try {
-      result = JSON.parse(cleanJsonResponse(text));
-    } catch (parseError: any) {
-      console.error(`${config.name} ${type} JSON parse failed:`, parseError.message);
-      return {
-        provider,
-        providerName: config.name,
-        model: config.model,
-        result: null,
-        error: "Analysis failed: Invalid JSON response from model",
-        durationMs: Date.now() - start,
-      };
+    const MAX_JSON_RETRIES = 2;
+    for (let jsonAttempt = 0; jsonAttempt < MAX_JSON_RETRIES; jsonAttempt++) {
+      const text = await callProvider(provider, prompt);
+      try {
+        result = JSON.parse(cleanJsonResponse(text));
+        break;
+      } catch (parseError: any) {
+        console.error(`${config.name} ${type} JSON parse failed (attempt ${jsonAttempt + 1}/${MAX_JSON_RETRIES}):`, parseError.message);
+        if (jsonAttempt === MAX_JSON_RETRIES - 1) {
+          return {
+            provider,
+            providerName: config.name,
+            model: config.model,
+            result: null,
+            error: "Analysis failed: Invalid JSON response from model",
+            durationMs: Date.now() - start,
+          };
+        }
+        console.log(`${config.name} retrying due to JSON parse failure...`);
+      }
     }
 
     const durationMs = Date.now() - start;
