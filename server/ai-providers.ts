@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 import * as path from "path";
-import { getStockAnalysisContext } from "./rag-service";
+import { getStockAnalysisContext, getMultiStockContext } from "./rag-service";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -202,11 +202,12 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
 
 // ─── Prompts (shared across all providers) ───
 
-export function buildPortfolioAnalysisPrompt(data: any): string {
+export function buildPortfolioAnalysisPrompt(data: any, ragContext = ""): string {
   return `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). Analyze this investment portfolio.
 
 PORTFOLIO DATA:
 ${JSON.stringify(data, null, 2)}
+${ragContext}
 
 Provide a comprehensive portfolio analysis covering:
 1. Overall health assessment
@@ -215,6 +216,7 @@ Provide a comprehensive portfolio analysis covering:
 4. Diversification quality (sector concentration, single stock risk)
 5. Specific actionable recommendations
 6. Top performers and underperformers
+${ragContext ? "\nIMPORTANT: Use the financial report data above to enrich your analysis with real company fundamentals, revenue trends, and earnings data where available." : ""}
 
 RESPONSE FORMAT (JSON):
 {
@@ -234,7 +236,7 @@ Be specific with numbers. Reference actual stocks and values from the portfolio.
 Respond ONLY with valid JSON, no markdown.`;
 }
 
-export function buildDeployCapitalPrompt(data: any, marketPrices?: Record<string, number>): string {
+export function buildDeployCapitalPrompt(data: any, marketPrices?: Record<string, number>, ragContext = ""): string {
   const marketPricesSection = marketPrices && Object.keys(marketPrices).length > 0
     ? `\n\nCURRENT REAL-TIME EGX MARKET PRICES (as of today, use ONLY these prices - do NOT use prices from your training data):\n${Object.entries(marketPrices).map(([sym, price]) => `${sym}: ${price.toFixed(2)} EGP`).join("\n")}\n`
     : "";
@@ -244,6 +246,7 @@ export function buildDeployCapitalPrompt(data: any, marketPrices?: Record<string
 CURRENT PORTFOLIO:
 ${JSON.stringify(data.portfolio, null, 2)}
 ${marketPricesSection}
+${ragContext}
 AMOUNT TO DEPLOY: ${data.amountToDeployEGP} EGP
 
 Recommend how to allocate this capital. Options:
@@ -284,11 +287,12 @@ IMPORTANT:
 - Include mix of existing and potentially new positions
 - Reference actual portfolio data in reasoning
 - buyZone MUST be based on the CURRENT REAL-TIME PRICES provided, NOT your training data. The buy zone should be a realistic range around the current market price.
+${ragContext ? "- Use the financial report data to identify which stocks have strong fundamentals for allocation." : ""}
 
 Respond ONLY with valid JSON, no markdown.`;
 }
 
-export function buildCompareStocksPrompt(data: any): string {
+export function buildCompareStocksPrompt(data: any, ragContext = ""): string {
   const amountSection = data.amountEGP
     ? `\nThe client has ${data.amountEGP} EGP to deploy.`
     : "";
@@ -301,6 +305,7 @@ ${JSON.stringify(data.stockData, null, 2)}
 CLIENT'S CURRENT PORTFOLIO:
 ${JSON.stringify(data.portfolio, null, 2)}
 ${amountSection}
+${ragContext}
 
 IMPORTANT: You have FULL FREEDOM to recommend ANY of these outcomes:
 1. Buy one of the compared stocks (all-in on one)
@@ -352,6 +357,7 @@ IMPORTANT:
 - If recommending dry powder, set allocation to [{"symbol": "CASH", "nameEn": "Dry Powder (Cash)", "amountEGP": <amount>, "percentage": 100, "isFromCompared": false}]
 - Be honest and specific. Don't be afraid to say "don't buy any of these"
 - Reference actual numbers from the data
+${ragContext ? "- Use the financial report data provided to compare real company fundamentals, revenue, and earnings." : ""}
 
 Respond ONLY with valid JSON, no markdown.`;
 }
@@ -458,6 +464,22 @@ IMPORTANT for riskSignals:
 Respond ONLY with valid JSON, no markdown formatting or additional text.`;
 }
 
+// ─── Helper: extract stock symbols from portfolio data ───
+
+function extractSymbols(data: any): string[] {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    return data.map((item: any) => item.symbol || item.Symbol).filter(Boolean);
+  }
+  if (data.stocks && Array.isArray(data.stocks)) {
+    return data.stocks.map((s: any) => s.symbol || s.Symbol).filter(Boolean);
+  }
+  if (data.holdings && Array.isArray(data.holdings)) {
+    return data.holdings.map((h: any) => h.symbol || h.Symbol).filter(Boolean);
+  }
+  return [];
+}
+
 // ─── Trusted providers for stock analysis ───
 
 export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "groq"];
@@ -486,15 +508,32 @@ export async function runAnalysis(
   let prompt: string;
   let ragUsed = false;
   switch (type) {
-    case "portfolio":
-      prompt = buildPortfolioAnalysisPrompt(promptData.data);
+    case "portfolio": {
+      const symbols = extractSymbols(promptData.data);
+      const { context, symbolsWithData } = symbols.length > 0
+        ? await getMultiStockContext(symbols) : { context: "", symbolsWithData: [] };
+      ragUsed = symbolsWithData.length > 0;
+      prompt = buildPortfolioAnalysisPrompt(promptData.data, context);
       break;
-    case "deploy":
-      prompt = buildDeployCapitalPrompt(promptData.data, promptData.marketPrices);
+    }
+    case "deploy": {
+      const symbols = extractSymbols(promptData.data?.portfolio);
+      const { context, symbolsWithData } = symbols.length > 0
+        ? await getMultiStockContext(symbols) : { context: "", symbolsWithData: [] };
+      ragUsed = symbolsWithData.length > 0;
+      prompt = buildDeployCapitalPrompt(promptData.data, promptData.marketPrices, context);
       break;
-    case "compare":
-      prompt = buildCompareStocksPrompt(promptData.data);
+    }
+    case "compare": {
+      const compareSymbols = (promptData.data?.stockData || []).map((s: any) => s.symbol).filter(Boolean);
+      const portfolioSymbols = extractSymbols(promptData.data?.portfolio);
+      const allSymbols = [...new Set([...compareSymbols, ...portfolioSymbols])];
+      const { context, symbolsWithData } = allSymbols.length > 0
+        ? await getMultiStockContext(allSymbols) : { context: "", symbolsWithData: [] };
+      ragUsed = symbolsWithData.length > 0;
+      prompt = buildCompareStocksPrompt(promptData.data, context);
       break;
+    }
     case "stock": {
       const symbol = promptData.data?.symbol;
       const ragContext = symbol ? await getStockAnalysisContext(symbol) : "";
@@ -538,7 +577,7 @@ export async function runAnalysis(
       result,
       durationMs,
     };
-    if (type === "stock") out.ragUsed = ragUsed;
+    out.ragUsed = ragUsed;
     return out;
   } catch (error: any) {
     const durationMs = Date.now() - start;

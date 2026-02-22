@@ -75,3 +75,28 @@ export async function getStockAnalysisContext(symbol: string): Promise<string> {
     .map((c, i) => `--- Excerpt ${i + 1} ---\n${c}`)
     .join("\n\n")}`;
 }
+
+/**
+ * Get RAG context for multiple symbols (portfolio, compare, deploy).
+ * Fetches top 3 chunks per symbol to keep total context manageable.
+ */
+export async function getMultiStockContext(symbols: string[]): Promise<{ context: string; symbolsWithData: string[] }> {
+  const symbolsWithData: string[] = [];
+  const parts: string[] = [];
+
+  for (const symbol of symbols) {
+    const query = `${symbol} financial performance revenue profit earnings valuation`;
+    const chunks = await getRelevantContext(symbol, query, 3);
+    if (chunks.length > 0) {
+      symbolsWithData.push(symbol);
+      parts.push(`\n--- ${symbol} Financial Report Excerpts ---\n${chunks.map((c, i) => `[${i + 1}] ${c}`).join("\n")}`);
+    }
+  }
+
+  if (parts.length === 0) return { context: "", symbolsWithData: [] };
+
+  return {
+    context: `\n\nFINANCIAL REPORT DATA (from company filings for: ${symbolsWithData.join(", ")}):\n${parts.join("\n")}`,
+    symbolsWithData,
+  };
+}
