@@ -125,7 +125,7 @@ async function callGemini(prompt: string): Promise<string> {
   if (!client) throw new Error("Gemini API key not configured");
   const model = client.getGenerativeModel({
     model: PROVIDERS.gemini.model,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+    generationConfig: { temperature: 0.7, maxOutputTokens: 16384 },
   });
   const result = await model.generateContent(prompt);
   return result.response.text();
@@ -143,7 +143,7 @@ async function callOpenAICompatible(
       { role: "user", content: prompt },
     ],
     temperature: 0.7,
-    max_tokens: 4096,
+    max_tokens: 8192,
   });
   return response.choices[0]?.message?.content || "";
 }
