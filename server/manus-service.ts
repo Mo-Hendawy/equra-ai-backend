@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
 import { setCache, getCached, getStaleCache } from "./api-cache";
+import { getStockAnalysisContext } from "./rag-service";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -209,10 +210,13 @@ export async function createManusAnalysis(symbol: string, stockData: ManusAnalys
     return null;
   }
 
+  const ragContext = await getStockAnalysisContext(symbol);
+
   const prompt = `Perform a deep dive investment analysis on the Egyptian Exchange (EGX) stock: ${stockData.companyName} (${symbol}).
 
 Here is the current basic data:
 ${JSON.stringify(stockData, null, 2)}
+${ragContext}
 
 Your analysis should cover:
 1. Comprehensive company overview and business model.
