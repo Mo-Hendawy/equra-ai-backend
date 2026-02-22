@@ -1,0 +1,371 @@
+{
+  "generatedAt": "2026-02-22T05:36:12.599Z",
+  "sourceDir": "C:\\Repos\\Financial-Reports",
+  "lancedbPath": "C:\\Repos\\equra-ai-backend\\server\\data\\lancedb",
+  "embedModel": "gemini-embedding-001",
+  "companies": [
+    {
+      "symbol": "ABUK",
+      "pdfCount": 4,
+      "files": [
+        {
+          "filename": "ABUK-Annual-Budget-2025.pdf",
+          "chunksExtracted": 5,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 5,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "ABUK-Q1-2026.pdf",
+          "chunksExtracted": 85,
+          "chunksSkipped": 41,
+          "chunksEmbedded": 44,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "ABUK-Q2-2025.pdf",
+          "chunksExtracted": 2,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 2,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "ABUK-Q3-2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 93,
+      "totalChunksEmbedded": 52,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 41,
+      "vectorsInLanceDB": 52,
+      "status": "full",
+      "tableName": "financial_reports_abuk"
+    },
+    {
+      "symbol": "COMI",
+      "pdfCount": 4,
+      "files": [
+        {
+          "filename": "CIB Condensed Financial Statements Standalone March25 ENGLISH.pdf",
+          "chunksExtracted": 47,
+          "chunksSkipped": 21,
+          "chunksEmbedded": 26,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "CIB Separate Condensed financial statements December 2025 English.pdf",
+          "chunksExtracted": 111,
+          "chunksSkipped": 53,
+          "chunksEmbedded": 58,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "CIB Separate Condensed financial statements June 2025 English.pdf",
+          "chunksExtracted": 47,
+          "chunksSkipped": 21,
+          "chunksEmbedded": 26,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "CIB Separate Condensed financial statements September 2025 English.pdf",
+          "chunksExtracted": 49,
+          "chunksSkipped": 23,
+          "chunksEmbedded": 26,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 254,
+      "totalChunksEmbedded": 136,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 118,
+      "vectorsInLanceDB": 136,
+      "status": "full",
+      "tableName": "financial_reports_comi"
+    },
+    {
+      "symbol": "EFID",
+      "pdfCount": 3,
+      "files": [
+        {
+          "filename": "2025-q2-earnings-en.pdf",
+          "chunksExtracted": 20,
+          "chunksSkipped": 10,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Edita-1Q2025-Earnings-release-E-vf.pdf",
+          "chunksExtracted": 16,
+          "chunksSkipped": 6,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Edita-3Q2025-Earnings-Release-E-FINAL.pdf",
+          "chunksExtracted": 20,
+          "chunksSkipped": 10,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 56,
+      "totalChunksEmbedded": 30,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 26,
+      "vectorsInLanceDB": 30,
+      "status": "full",
+      "tableName": "financial_reports_efid"
+    },
+    {
+      "symbol": "EGAL",
+      "pdfCount": 6,
+      "files": [
+        {
+          "filename": "9 Months -- 2025.pdf",
+          "chunksExtracted": 2,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 2,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Annual -- 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "EGAL-Q1.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Quarter -- 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Quarter -- 2026.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Semi-annual -- 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 7,
+      "totalChunksEmbedded": 7,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 0,
+      "vectorsInLanceDB": 7,
+      "status": "full",
+      "tableName": "financial_reports_egal"
+    },
+    {
+      "symbol": "ETEL",
+      "pdfCount": 3,
+      "files": [
+        {
+          "filename": "Earnings_Release-Q2-2025.pdf",
+          "chunksExtracted": 10,
+          "chunksSkipped": 5,
+          "chunksEmbedded": 5,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Earnings_Release-Q3-2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Earnings_Releasea-Q1-2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 12,
+      "totalChunksEmbedded": 7,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 5,
+      "vectorsInLanceDB": 7,
+      "status": "full",
+      "tableName": "financial_reports_etel"
+    },
+    {
+      "symbol": "JUFO",
+      "pdfCount": 3,
+      "files": [
+        {
+          "filename": "JUFO-Q1-2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "JUFO-Q2-2025.pdf",
+          "chunksExtracted": 5,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 5,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "JUFO-Q3-2025.pdf",
+          "chunksExtracted": 7,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 7,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 13,
+      "totalChunksEmbedded": 13,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 0,
+      "vectorsInLanceDB": 13,
+      "status": "full",
+      "tableName": "financial_reports_jufo"
+    },
+    {
+      "symbol": "MICH",
+      "pdfCount": 5,
+      "files": [
+        {
+          "filename": "Misr Chemical Industries Annual 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Misr Chemical Industries First Quarter 2025.pdf",
+          "chunksExtracted": 53,
+          "chunksSkipped": 24,
+          "chunksEmbedded": 29,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Misr Chemical Industries second Quarter 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Misr Chemical Industries Second Quarter 2026.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Misr Chemical Industries Third Quarter 2025.pdf",
+          "chunksExtracted": 1,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 1,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 57,
+      "totalChunksEmbedded": 33,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 24,
+      "vectorsInLanceDB": 33,
+      "status": "full",
+      "tableName": "financial_reports_mich"
+    },
+    {
+      "symbol": "SWDY",
+      "pdfCount": 3,
+      "files": [
+        {
+          "filename": "Elsewedy-Electric-ER-1Q2025.pdf",
+          "chunksExtracted": 18,
+          "chunksSkipped": 8,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Elsewedy-Electric-ER-2Q2025-E-.pdf",
+          "chunksExtracted": 18,
+          "chunksSkipped": 8,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "Elsewedy-Electric-ER-3Q2025-E-.pdf",
+          "chunksExtracted": 18,
+          "chunksSkipped": 8,
+          "chunksEmbedded": 10,
+          "chunksFailed": 0,
+          "status": "full"
+        }
+      ],
+      "totalChunksExtracted": 54,
+      "totalChunksEmbedded": 30,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 24,
+      "vectorsInLanceDB": 30,
+      "status": "full",
+      "tableName": "financial_reports_swdy"
+    }
+  ],
+  "summary": {
+    "totalCompanies": 8,
+    "full": 8,
+    "partial": 0,
+    "empty": 0,
+    "error": 0,
+    "totalVectors": 308,
+    "totalChunksExtracted": 546,
+    "totalChunksEmbedded": 308,
+    "totalChunksFailed": 0
+  }
+}
