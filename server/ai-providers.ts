@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { getStockAnalysisContext } from "./rag-service";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -321,11 +322,12 @@ Respond ONLY with valid JSON, no markdown.`;
 
 // ─── Stock Analysis Prompt (single stock) ───
 
-export function buildStockAnalysisPrompt(stockData: any): string {
+export function buildStockAnalysisPrompt(stockData: any, ragContext = ""): string {
   return `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.
 
 STOCK DATA:
 ${JSON.stringify(stockData, null, 2)}
+${ragContext}
 
 ANALYSIS REQUIREMENTS:
 
@@ -446,6 +448,7 @@ export async function runAnalysis(
   }
 
   let prompt: string;
+  let ragUsed = false;
   switch (type) {
     case "portfolio":
       prompt = buildPortfolioAnalysisPrompt(promptData.data);
@@ -456,9 +459,13 @@ export async function runAnalysis(
     case "compare":
       prompt = buildCompareStocksPrompt(promptData.data);
       break;
-    case "stock":
-      prompt = buildStockAnalysisPrompt(promptData.data);
+    case "stock": {
+      const symbol = promptData.data?.symbol;
+      const ragContext = symbol ? await getStockAnalysisContext(symbol) : "";
+      ragUsed = ragContext.length > 0;
+      prompt = buildStockAnalysisPrompt(promptData.data, ragContext);
       break;
+    }
   }
 
   try {
@@ -481,7 +488,15 @@ export async function runAnalysis(
     const durationMs = Date.now() - start;
     console.log(`${config.name} ${type} completed in ${durationMs}ms`);
 
-    return { provider, providerName: config.name, model: config.model, result, durationMs };
+    const out: { provider: ProviderName; providerName: string; model: string; result: any; error?: string; durationMs: number; ragUsed?: boolean } = {
+      provider,
+      providerName: config.name,
+      model: config.model,
+      result,
+      durationMs,
+    };
+    if (type === "stock") out.ragUsed = ragUsed;
+    return out;
   } catch (error: any) {
     const durationMs = Date.now() - start;
     console.error(`${config.name} ${type} failed in ${durationMs}ms:`, error.message);
