@@ -1,0 +1,98 @@
+📋 Equra AI — Financial Report URLs to Download
+=================================================
+
+✅ Report folders created in: c:\Repos\equra-ai-backend\server\financial-reports\
+📊 You need: 8 quarters per company (Q3 2024 → Q4 2025)
+
+1. ETEL — Telecom Egypt
+   📄 https://ir.te.eg/en/FinancialInformation/QuarterlyResults
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\ETEL\
+
+2. COMI — Commercial International Bank  
+   📄 https://www.cibeg.com/en/investor-relations/quarterly-results
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\COMI\
+
+3. SWDY — El Sewedy Electric
+   📄 https://ir.elsewedyelectric.com/en/results-center
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\SWDY\
+
+4. TMGH — Talaat Moustafa Group
+   📄 https://ir.tmg-heliopolis.com/
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\TMGH\
+
+5. FWRY — Fawry for Banking Technology
+   📄 https://english.mubasher.info/markets/EGX/stocks/FWRY/financial-statements
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\FWRY\
+
+6. HRHO — EFG Hermes Holding
+   📄 https://www.efghermes.com/en/investor-center/financial-results
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\HRHO\
+
+7. PHDC — Palm Hills Developments  
+   📄 https://english.mubasher.info/markets/EGX/stocks/PHDC/financial-statements
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\PHDC\
+
+8. ABUK — Abu Qir Fertilizers & Chemical
+   📄 https://english.mubasher.info/markets/EGX/stocks/ABUK/financial-statements
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\ABUK\
+
+9. EAST — Eastern Company
+   📄 https://english.mubasher.info/markets/EGX/stocks/EAST/financial-statements
+   💾 c:\Repos\equra-ai-backend\server\financial-reports\EAST\
+
+10. JUFO — Juhayna Food Industries
+    📄 https://english.mubasher.info/markets/EGX/stocks/JUFO/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\JUFO\
+
+11. HDBK — Housing & Development Bank
+    📄 https://english.mubasher.info/markets/EGX/stocks/HDBK/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\HDBK\
+
+12. VALU — U Consumer Finance
+    📄 https://english.mubasher.info/markets/EGX/stocks/VALU/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\VALU\
+
+13. MFPC — Misr Fertilizers Production Company
+    📄 https://english.mubasher.info/markets/EGX/stocks/MFPC/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\MFPC\
+
+14. EGAL — Egypt Aluminum
+    📄 https://english.mubasher.info/markets/EGX/stocks/EGAL/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\EGAL\
+
+15. ESRS — Ezz Steel
+    📄 https://english.mubasher.info/markets/EGX/stocks/ESRS/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\ESRS\
+
+16. EFID — Edita Food Industries  
+    📄 https://english.mubasher.info/markets/EGX/stocks/EFID/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\EFID\
+
+17. CIRA — Cairo for Investment & Real Estate Development
+    📄 https://english.mubasher.info/markets/EGX/stocks/CIRA/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\CIRA\
+
+18. CLHO — Cleopatra Hospital
+    📄 https://english.mubasher.info/markets/EGX/stocks/CLHO/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\CLHO\
+
+19. ORWE — Oriental Weavers Carpet
+    📄 https://english.mubasher.info/markets/EGX/stocks/ORWE/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\ORWE\
+
+20. SKPC — Sidi Kerir Petrochemicals
+    📄 https://english.mubasher.info/markets/EGX/stocks/SKPC/financial-statements
+    💾 c:\Repos\equra-ai-backend\server\financial-reports\SKPC\
+
+
+📋 INSTRUCTIONS:
+1. Open each URL above in your browser
+2. Find the latest 8 quarterly reports (Q3 2024 → Q4 2025)
+3. Download the PDF reports
+4. Save them to the corresponding folder (each folder already created ✅)
+5. When you have all PDFs, tell me and I'll start the Manus AI parsing
+
+⏱️  Estimated time: 30-60 minutes for all 20 companies
+📊 Progress: 0/160 quarterly reports downloaded (9.6%) 
+
+Ready? Let's collect those financial reports! 📈💰
