@@ -1288,6 +1288,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ providers });
   });
 
+  // RAG status: what's filled, partial, empty (from rag-manifest.json)
+  app.get("/api/rag/status", (_req, res) => {
+    const manifestPath = path.join(process.cwd(), "server", "data", "rag-manifest.json");
+    if (!fs.existsSync(manifestPath)) {
+      return res.json({
+        available: false,
+        message: "No RAG manifest. Run: npx tsx server/scripts/ingest-pdfs.ts or npx tsx server/scripts/rag-status.ts",
+      });
+    }
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      res.json({ available: true, ...manifest });
+    } catch (e) {
+      res.status(500).json({ available: false, error: "Failed to read manifest" });
+    }
+  });
+
   // ─── Multi-Provider AI Endpoints ───
 
   // List available providers
