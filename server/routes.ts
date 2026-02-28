@@ -1089,8 +1089,6 @@ async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<Senti
     
     if (process.env.HUGGINGFACE_API_KEY) {
       headers["Authorization"] = `Bearer ${process.env.HUGGINGFACE_API_KEY}`;
-    } else {
-      console.warn("⚠️ HUGGINGFACE_API_KEY is not set. Sentiment analysis will likely fail.");
     }
     
     const response = await fetch(API_URL, {

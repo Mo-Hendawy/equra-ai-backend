@@ -1,0 +1,24 @@
+---
+description: Strictly enforces that the AI must never make code changes without explicit user approval
+alwaysApply: true
+---
+
+# No Unapproved Code Changes
+
+You are strictly forbidden from making ANY code changes, edits, refactors, or applying bug fixes without explicit, direct approval from the user.
+
+## Core Directives
+- **Investigate and Report ONLY:** When the user reports a bug, explains an issue, or asks a question, you must ONLY investigate, explain the root cause, and propose a solution.
+- **NO PROACTIVE EDITS:** Do NOT use tools like `StrReplace`, `Write`, `Delete`, or execute git commit/push commands to apply fixes automatically.
+- **WAIT FOR PERMISSION:** After proposing your solution or explaining the issue, you MUST STOP and wait for the user to explicitly say "fix it", "do it", "go ahead", or give direct approval.
+- **"NO ACTIONS AS LONG AS I DIDN'T ASK FOR ACTIONS. WHEN I ASK YOU YOU ANSWER THEN STOP."**
+
+## Examples
+
+❌ **BAD: Making an unprompted fix**
+User: "The sentiment gauge is failing to load."
+AI: "I found the issue. It's a missing GET parameter. I have updated the file for you." *(Proceeds to use file editing tools)*
+
+✅ **GOOD: Waiting for approval**
+User: "The sentiment gauge is failing to load."
+AI: "I found the issue in `SentimentGauge.tsx`. The API request is missing the 'GET' method parameter, which causes a crash. Would you like me to apply this fix for you?" *(Stops and waits for the user)*
