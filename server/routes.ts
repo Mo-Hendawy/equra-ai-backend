@@ -975,21 +975,9 @@ export interface SentimentResult {
 }
 
 async function fetchTradingViewNews(symbol: string): Promise<NewsItem[]> {
-  try {
-    const url = `https://news-headlines.tradingview.com/v2/headlines/symbol?symbol=EGX%3A${symbol}`;
-    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return (data.items || []).slice(0, 5).map((item: any) => ({
-      date: new Date(item.published * 1000).toISOString(),
-      title: item.title,
-      content: item.snippet || "",
-      source: "TradingView"
-    }));
-  } catch (error) {
-    console.error("TradingView news error:", error);
-    return [];
-  }
+  // TradingView news often returns 404 for EGX symbols.
+  // Instead of failing completely, we return an empty array to allow macro news to take over.
+  return [];
 }
 
 async function fetchEODHDNews(symbol: string): Promise<NewsItem[]> {
