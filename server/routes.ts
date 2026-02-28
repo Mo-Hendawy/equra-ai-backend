@@ -959,6 +959,164 @@ async function calculateAnalysis(
   };
 }
 
+interface NewsItem {
+  date: string;
+  title: string;
+  content: string;
+  source: string;
+}
+
+export interface SentimentResult {
+  score: "Bullish" | "Bearish" | "Neutral";
+  bullishScore: number;
+  bearishScore: number;
+  neutralScore: number;
+  headlines: { title: string; sentiment: string; score: number; source: string }[];
+}
+
+async function fetchTradingViewNews(symbol: string): Promise<NewsItem[]> {
+  try {
+    const url = `https://news-headlines.tradingview.com/v2/headlines/symbol?symbol=EGX%3A${symbol}`;
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.items || []).slice(0, 5).map((item: any) => ({
+      date: new Date(item.published * 1000).toISOString(),
+      title: item.title,
+      content: item.snippet || "",
+      source: "TradingView"
+    }));
+  } catch (error) {
+    console.error("TradingView news error:", error);
+    return [];
+  }
+}
+
+async function fetchEODHDNews(symbol: string): Promise<NewsItem[]> {
+  try {
+    const url = `${EODHD_BASE_URL}/news?s=${symbol}.EGX&api_token=${EODHD_API_TOKEN}&limit=5&fmt=json`;
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!response.ok) return await fetchTradingViewNews(symbol);
+    const data = await response.json();
+    if (!data || data.length === 0) return await fetchTradingViewNews(symbol);
+    
+    return data.map((item: any) => ({
+      date: item.date,
+      title: item.title,
+      content: item.content,
+      source: "EODHD"
+    }));
+  } catch (error) {
+    console.error("EODHD news error:", error);
+    return await fetchTradingViewNews(symbol);
+  }
+}
+
+async function fetchMacroNews(): Promise<NewsItem[]> {
+  try {
+    const url = `${EODHD_BASE_URL}/news?t=egypt&api_token=${EODHD_API_TOKEN}&limit=5&fmt=json`;
+    const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.map((item: any) => ({
+      date: item.date,
+      title: item.title,
+      content: item.content,
+      source: "EODHD Macro"
+    }));
+  } catch (error) {
+    return [];
+  }
+}
+
+async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<SentimentResult | null> {
+  if (newsItems.length === 0) return null;
+  
+  try {
+    // HF Inference API for FinBERT
+    const API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert";
+    
+    const inputs = newsItems.map(item => item.title);
+    
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    if (process.env.HUGGINGFACE_API_KEY) {
+      headers["Authorization"] = `Bearer ${process.env.HUGGINGFACE_API_KEY}`;
+    }
+    
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ inputs }),
+    });
+    
+    if (!response.ok) {
+      console.error("HuggingFace API error:", await response.text());
+      return null;
+    }
+    
+    const results = await response.json();
+    
+    if (results.error) {
+       console.error("HF returned error:", results.error);
+       return null;
+    }
+    
+    let totalBullish = 0;
+    let totalBearish = 0;
+    let totalNeutral = 0;
+    
+    const headlines = [];
+    
+    for (let i = 0; i < results.length; i++) {
+      const scores = results[i];
+      const pos = scores.find((s: any) => s.label === "positive")?.score || 0;
+      const neg = scores.find((s: any) => s.label === "negative")?.score || 0;
+      const neu = scores.find((s: any) => s.label === "neutral")?.score || 0;
+      
+      totalBullish += pos;
+      totalBearish += neg;
+      totalNeutral += neu;
+      
+      let sentiment = "Neutral";
+      let highestScore = neu;
+      if (pos > neg && pos > neu) { sentiment = "Bullish"; highestScore = pos; }
+      else if (neg > pos && neg > neu) { sentiment = "Bearish"; highestScore = neg; }
+      
+      headlines.push({
+        title: newsItems[i].title,
+        source: newsItems[i].source,
+        sentiment,
+        score: highestScore
+      });
+    }
+    
+    const count = results.length;
+    const avgBullish = totalBullish / count;
+    const avgBearish = totalBearish / count;
+    const avgNeutral = totalNeutral / count;
+    
+    let finalScore: "Bullish" | "Bearish" | "Neutral" = "Neutral";
+    // Adjust thresholds for general sentiment
+    if (avgBullish > 0.40 && avgBullish > avgBearish) finalScore = "Bullish";
+    else if (avgBearish > 0.40 && avgBearish > avgBullish) finalScore = "Bearish";
+    
+    return {
+      score: finalScore,
+      bullishScore: avgBullish,
+      bearishScore: avgBearish,
+      neutralScore: avgNeutral,
+      headlines
+    };
+    
+  } catch (error) {
+    console.error("Sentiment analysis error:", error);
+    return null;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prices/:symbol", async (req, res) => {
     const { symbol } = req.params;
@@ -1199,6 +1357,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Compare stocks error:", error);
       res.status(500).json({ error: "Failed to compare stocks" });
+    }
+  });
+
+  // ─── Financial Sentiment (FinBERT) ───
+  app.get("/api/stocks/:symbol/sentiment", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    
+    try {
+      // 1. Fetch Micro News (Company specific)
+      const microNews = await fetchEODHDNews(symbol);
+      
+      // 2. Fetch Macro News (Egypt economy)
+      const macroNews = await fetchMacroNews();
+      
+      // We will analyze them together or separately.
+      // EODHD API sometimes returns no news for smaller stocks, so we rely on macro news in that case.
+      // To ensure diversity, we interleave them or just take top 5 of each.
+      const allNews = [...microNews.slice(0, 5), ...macroNews.slice(0, 5)];
+      
+      if (allNews.length === 0) {
+        return res.json({
+          score: "Neutral",
+          bullishScore: 0,
+          bearishScore: 0,
+          neutralScore: 1,
+          headlines: [],
+          status: "No News Available"
+        });
+      }
+      
+      const sentimentResult = await analyzeSentimentWithFinBERT(allNews);
+      
+      if (!sentimentResult) {
+        return res.status(503).json({ error: "Sentiment analysis unavailable at this time." });
+      }
+      
+      res.json(sentimentResult);
+    } catch (error) {
+      console.error("Sentiment route error:", error);
+      res.status(500).json({ error: "Failed to fetch sentiment data." });
     }
   });
 
