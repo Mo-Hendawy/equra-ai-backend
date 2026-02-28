@@ -40,7 +40,7 @@ function getCerebrasClient() {
 function getHuggingFaceClient() {
   const key = process.env.HUGGINGFACE_API_KEY || "";
   // We use OpenAI SDK to connect to HF serverless endpoints
-  return key ? new OpenAI({ apiKey: key, baseURL: "https://router.huggingface.co/hf-inference/v1/" }) : null;
+  return key ? new OpenAI({ apiKey: key, baseURL: "https://router.huggingface.co/v1" }) : null;
 }
 
 export function isProviderConfigured(provider: ProviderName): boolean {
