@@ -974,19 +974,67 @@ export interface SentimentResult {
   headlines: { title: string; sentiment: string; score: number; source: string }[];
 }
 
-async function fetchTradingViewNews(symbol: string): Promise<NewsItem[]> {
-  // TradingView news often returns 404 for EGX symbols.
-  // Instead of failing completely, we return an empty array to allow macro news to take over.
-  return [];
+async function fetchGoogleNews(query: string): Promise<NewsItem[]> {
+  try {
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    
+    const xml = await response.text();
+    
+    // Very basic regex to extract titles and pubDates from RSS XML
+    // Since we just need the text for sentiment analysis, regex is fine here without a full XML parser
+    const items: NewsItem[] = [];
+    const itemRegex = /<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/gi;
+    
+    let match;
+    let count = 0;
+    while ((match = itemRegex.exec(xml)) !== null && count < 5) {
+      // Decode HTML entities (basic ones)
+      const title = match[1]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+        
+      items.push({
+        date: new Date(match[2]).toISOString(),
+        title: title,
+        content: title, // Google RSS description is messy HTML, title is better for FinBERT
+        source: "Google News"
+      });
+      count++;
+    }
+    
+    return items;
+  } catch (error) {
+    console.error("Google News error:", error);
+    return [];
+  }
 }
 
 async function fetchEODHDNews(symbol: string): Promise<NewsItem[]> {
   try {
     const url = `${EODHD_BASE_URL}/news?s=${symbol}.EGX&api_token=${EODHD_API_TOKEN}&limit=5&fmt=json`;
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!response.ok) return await fetchTradingViewNews(symbol);
-    const data = await response.json();
-    if (!data || data.length === 0) return await fetchTradingViewNews(symbol);
+    
+    // Fallback if EODHD fails (e.g. rate limit)
+    if (!response.ok) {
+      console.log(`EODHD failed for ${symbol}, falling back to Google News`);
+      return await fetchGoogleNews(`${symbol} OR "${EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol}" Egypt stock`);
+    }
+    
+    const text = await response.text();
+    if (text.includes("exceeded your daily API requests limit") || text.includes("error")) {
+      console.log(`EODHD rate limit hit for ${symbol}, falling back to Google News`);
+      return await fetchGoogleNews(`${symbol} OR "${EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol}" Egypt stock`);
+    }
+    
+    const data = JSON.parse(text);
+    if (!data || data.length === 0) {
+      return await fetchGoogleNews(`${symbol} OR "${EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol}" Egypt stock`);
+    }
     
     return data.map((item: any) => ({
       date: item.date,
@@ -996,7 +1044,7 @@ async function fetchEODHDNews(symbol: string): Promise<NewsItem[]> {
     }));
   } catch (error) {
     console.error("EODHD news error:", error);
-    return await fetchTradingViewNews(symbol);
+    return await fetchGoogleNews(`${symbol} OR "${EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol}" Egypt stock`);
   }
 }
 
@@ -1004,8 +1052,17 @@ async function fetchMacroNews(): Promise<NewsItem[]> {
   try {
     const url = `${EODHD_BASE_URL}/news?t=egypt&api_token=${EODHD_API_TOKEN}&limit=5&fmt=json`;
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!response.ok) return [];
-    const data = await response.json();
+    
+    if (!response.ok) {
+      return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
+    }
+    
+    const text = await response.text();
+    if (text.includes("exceeded your daily API requests limit") || text.includes("error")) {
+      return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
+    }
+    
+    const data = JSON.parse(text);
     return data.map((item: any) => ({
       date: item.date,
       title: item.title,
@@ -1013,7 +1070,7 @@ async function fetchMacroNews(): Promise<NewsItem[]> {
       source: "EODHD Macro"
     }));
   } catch (error) {
-    return [];
+    return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
   }
 }
 
