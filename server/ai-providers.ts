@@ -40,7 +40,7 @@ function getCerebrasClient() {
 function getHuggingFaceClient() {
   const key = process.env.HUGGINGFACE_API_KEY || "";
   // We use OpenAI SDK to connect to HF serverless endpoints
-  return key ? new OpenAI({ apiKey: key, baseURL: "https://api-inference.huggingface.co/v1/" }) : null;
+  return key ? new OpenAI({ apiKey: key, baseURL: "https://router.huggingface.co/hf-inference/v1/" }) : null;
 }
 
 export function isProviderConfigured(provider: ProviderName): boolean {
@@ -55,13 +55,15 @@ function isProviderAvailable(provider: ProviderName): boolean {
     case "groq": return !!(process.env.GROQ_API_KEY);
     case "cerebras": return !!(process.env.CEREBRAS_API_KEY);
     case "huggingface": return !!(process.env.HUGGINGFACE_API_KEY);
+    case "huggingface-qwen": return !!(process.env.HUGGINGFACE_API_KEY);
+    case "huggingface-mistral": return !!(process.env.HUGGINGFACE_API_KEY);
     default: return false;
   }
 }
 
 console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, OpenRouter=${!!process.env.OPENROUTER_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
 
-export type ProviderName = "gemini" | "deepseek" | "kimi" | "groq" | "cerebras" | "huggingface";
+export type ProviderName = "gemini" | "deepseek" | "kimi" | "groq" | "cerebras" | "huggingface" | "huggingface-qwen" | "huggingface-mistral";
 
 interface ProviderConfig {
   name: string;
@@ -75,7 +77,9 @@ export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> &
   kimi: { name: "Kimi K2.5 (OpenRouter)", model: "moonshotai/kimi-k2.5" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
   cerebras: { name: "GPT-OSS 120B (Cerebras)", model: "gpt-oss-120b" },
-  huggingface: { name: "HuggingFace (FinLLM)", model: "meta-llama/Llama-3.2-3B-Instruct" },
+  huggingface: { name: "HuggingFace Llama 3.2", model: "meta-llama/Llama-3.2-3B-Instruct" },
+  "huggingface-qwen": { name: "HuggingFace Qwen 2.5", model: "Qwen/Qwen2.5-72B-Instruct" },
+  "huggingface-mistral": { name: "HuggingFace Mistral 7B", model: "mistralai/Mistral-7B-Instruct-v0.3" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
@@ -207,6 +211,16 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
       const client = getHuggingFaceClient();
       if (!client) throw new Error("HuggingFace API key not configured");
       return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.huggingface.model, prompt));
+    }
+    case "huggingface-qwen": {
+      const client = getHuggingFaceClient();
+      if (!client) throw new Error("HuggingFace API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS["huggingface-qwen"].model, prompt));
+    }
+    case "huggingface-mistral": {
+      const client = getHuggingFaceClient();
+      if (!client) throw new Error("HuggingFace API key not configured");
+      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS["huggingface-mistral"].model, prompt));
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);
@@ -495,7 +509,7 @@ function extractSymbols(data: any): string[] {
 
 // ─── Trusted providers for stock analysis ───
 
-export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "groq", "huggingface"];
+export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "groq", "huggingface", "huggingface-qwen", "huggingface-mistral"];
 
 // ─── Execute analysis for a single provider ───
 
