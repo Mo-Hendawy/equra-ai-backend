@@ -1034,7 +1034,7 @@ async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<Senti
   
   try {
     // HF Inference API for FinBERT
-    const API_URL = "https://api-inference.huggingface.co/models/ProsusAI/finbert";
+    const API_URL = "https://router.huggingface.co/hf-inference/models/ProsusAI/finbert";
     
     const inputs = newsItems.map(item => item.title);
     
@@ -1044,6 +1044,8 @@ async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<Senti
     
     if (process.env.HUGGINGFACE_API_KEY) {
       headers["Authorization"] = `Bearer ${process.env.HUGGINGFACE_API_KEY}`;
+    } else {
+      console.warn("⚠️ HUGGINGFACE_API_KEY is not set. Sentiment analysis will likely fail.");
     }
     
     const response = await fetch(API_URL, {
