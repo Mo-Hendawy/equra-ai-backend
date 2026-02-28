@@ -1445,6 +1445,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/portfolio-sentiment", async (req, res) => {
+    const { symbols } = req.body; // Array of symbols (e.g., top 3-5 holdings)
+    
+    if (!Array.isArray(symbols)) {
+      return res.status(400).json({ error: "symbols array required" });
+    }
+    
+    try {
+      // 1. Fetch Macro News
+      const macroNews = await fetchMacroNews();
+      let allNews = [...macroNews.slice(0, 4)]; // Top 4 macro news
+      
+      // 2. Fetch 1-2 news for each symbol to avoid overwhelming the model/API limits
+      for (const symbol of symbols.slice(0, 5)) {
+        const microNews = await fetchEODHDNews(symbol.toUpperCase());
+        allNews = [...allNews, ...microNews.slice(0, 2)];
+      }
+      
+      if (allNews.length === 0) {
+        return res.json({
+          score: "Neutral",
+          bullishScore: 0,
+          bearishScore: 0,
+          neutralScore: 1,
+          headlines: [],
+          status: "No News Available"
+        });
+      }
+      
+      const sentimentResult = await analyzeSentimentWithFinBERT(allNews);
+      
+      if (!sentimentResult) {
+        return res.status(503).json({ error: "Sentiment analysis unavailable at this time." });
+      }
+      
+      res.json(sentimentResult);
+    } catch (error) {
+      console.error("Portfolio sentiment route error:", error);
+      res.status(500).json({ error: "Failed to fetch portfolio sentiment." });
+    }
+  });
+
   // ─── Multi-Provider Stock Analysis ───
 
   // Per-provider single stock analysis
