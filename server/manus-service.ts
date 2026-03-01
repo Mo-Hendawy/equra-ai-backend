@@ -47,6 +47,7 @@ export interface ManusAnalysisRequest {
   priceChange90d: number | null;
   priceSource?: string;
   fundamentalsSource?: string;
+  sentiment?: { title: string; source: string; scores: { label: string; score: number }[] }[];
 }
 
 export interface ManusAnalysisResult {
@@ -220,14 +221,15 @@ ${ragContext}
 
 Your analysis should cover:
 1. Comprehensive company overview and business model.
-2. In-depth financial health analysis (balance sheet, income statement, cash flow, debt).
-3. Competitive landscape and industry positioning within the EGX.
-4. Macroeconomic factors impacting the stock in Egypt.
-5. Valuation using multiple advanced models (e.g., DCF, comparable companies, residual income) - if data is available.
-6. Clear fair value estimate with a range, detailed entry/exit zones, and price targets.
-7. Detailed risk assessment and potential red flags.
-8. Actionable investment recommendation (Buy, Hold, Sell) with strong reasoning.
-9. Provide sources for data used in analysis.
+2. If SENTIMENT data is provided (raw FinBERT scores per headline: positive/negative/neutral), incorporate it.
+3. In-depth financial health analysis (balance sheet, income statement, cash flow, debt).
+4. Competitive landscape and industry positioning within the EGX.
+5. Macroeconomic factors impacting the stock in Egypt.
+6. Valuation using multiple advanced models (e.g., DCF, comparable companies, residual income) - if data is available.
+7. Clear fair value estimate with a range, detailed entry/exit zones, and price targets.
+8. Detailed risk assessment and potential red flags.
+9. Actionable investment recommendation (Buy, Hold, Sell) with strong reasoning.
+10. Provide sources for data used in analysis.
 
 Output ONLY a well-structured markdown report, including key sections and a summary table for financial metrics and valuation results.
 Ensure all numbers are clearly cited.`;

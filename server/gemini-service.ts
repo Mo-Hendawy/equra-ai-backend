@@ -95,6 +95,9 @@ export interface StockDataForAI {
   // Data sources
   priceSource?: string;
   fundamentalsSource?: string;
+
+  // Market sentiment - raw FinBERT response per headline (no aggregation)
+  sentiment?: { title: string; source: string; scores: { label: string; score: number }[] }[];
 }
 
 export interface GeminiAnalysis {
@@ -150,7 +153,7 @@ ${JSON.stringify(stockData, null, 2)}
 
 ANALYSIS REQUIREMENTS:
 
-1. **Market Overview**: Current status with 52-week range (if available), trading volume, P/E ratio, recent performance
+1. **Market Overview**: Current status with 52-week range (if available), trading volume, P/E ratio, recent performance. If SENTIMENT data is provided (raw FinBERT scores per headline: positive/negative/neutral with scores 0-1), incorporate it: consider whether news-driven sentiment aligns with or contradicts valuation, and mention key drivers.
 
 2. **Fair Value Analysis**: 
    - Calculate using multiple methods (P/E based, P/B, Graham Formula, Analyst Average if applicable)
@@ -387,8 +390,16 @@ export function createFallbackAnalysis(
   };
 }
 
+// Raw FinBERT response per headline (no aggregation)
+export interface RawSentimentItem {
+  title: string;
+  source: string;
+  scores: { label: string; score: number }[];
+}
+
 // Portfolio Analysis with Gemini
 export interface PortfolioAnalysisRequest {
+  sentiment?: RawSentimentItem[];
   holdings: {
     symbol: string;
     nameEn: string;
@@ -445,6 +456,7 @@ Provide a comprehensive portfolio analysis covering:
 4. Diversification quality (sector concentration, single stock risk)
 5. Specific actionable recommendations
 6. Top performers and underperformers
+7. If SENTIMENT data is provided (raw FinBERT scores per headline), incorporate it.
 
 RESPONSE FORMAT (JSON):
 {
@@ -521,6 +533,7 @@ Consider:
 - Which sectors need more exposure
 - Valuation opportunities in current market
 - Risk management
+- If SENTIMENT data is in the portfolio (raw FinBERT scores per headline), factor it in
 
 CRITICAL: You MUST use the CURRENT REAL-TIME MARKET PRICES provided above for all price references and buy zone calculations. Do NOT rely on your training data for stock prices as they are severely outdated.
 
@@ -562,6 +575,7 @@ Respond ONLY with valid JSON, no markdown.`;
 // Compare Stocks with Gemini
 export interface CompareStocksRequest {
   symbols: string[];
+  sentimentBySymbol?: Record<string, RawSentimentItem[]>;
   stockData: {
     symbol: string;
     nameEn: string;
@@ -608,6 +622,9 @@ export async function compareStocksWithGemini(data: CompareStocksRequest): Promi
     const amountSection = data.amountEGP
       ? `\nThe client has ${data.amountEGP} EGP to deploy.`
       : "";
+    const sentimentSection = data.sentimentBySymbol && Object.keys(data.sentimentBySymbol).length > 0
+      ? `\n\nMARKET SENTIMENT (raw FinBERT response per headline - scores for positive/negative/neutral):\n${JSON.stringify(data.sentimentBySymbol, null, 2)}`
+      : "";
 
     const prompt = `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). A client wants you to compare these stocks and advise which to buy.
 
@@ -617,6 +634,7 @@ ${JSON.stringify(data.stockData, null, 2)}
 CLIENT'S CURRENT PORTFOLIO:
 ${JSON.stringify(data.portfolio, null, 2)}
 ${amountSection}
+${sentimentSection}
 
 IMPORTANT: You have FULL FREEDOM to recommend ANY of these outcomes:
 1. Buy one of the compared stocks (all-in on one)
@@ -631,6 +649,7 @@ Consider:
 - Current valuation (is it cheap or expensive right now?)
 - Buy urgency (buy now before it moves, or it can wait)
 - How each stock fits with the client's existing portfolio
+- If SENTIMENT data (sentimentBySymbol: raw FinBERT scores per headline per stock) is provided, factor it in
 - Diversification impact
 - Whether the portfolio already has enough exposure to certain sectors
 - Market timing - is now a good time or should they wait?

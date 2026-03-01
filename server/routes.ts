@@ -839,6 +839,9 @@ async function calculateAnalysis(
     priceChange90d = ((currentPrice - price90dAgo) / price90dAgo) * 100;
   }
 
+  // Fetch market sentiment (FinBERT on recent news) for AI context
+  const sentiment = await fetchSentimentForSymbol(symbol);
+
   // Prepare data for Gemini AI analysis
   const stockDataForAI: StockDataForAI = {
     symbol,
@@ -857,6 +860,7 @@ async function calculateAnalysis(
     priceChange90d,
     priceSource: price.source,
     fundamentalsSource: financials.source,
+    ...(sentiment && sentiment.length > 0 && { sentiment }),
   };
 
   // Try Gemini AI analysis first
@@ -1227,6 +1231,65 @@ async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<Senti
   }
 }
 
+/** Raw FinBERT response per headline - no aggregation. Used by AI analysis flows. */
+export interface RawSentimentItem {
+  title: string;
+  source: string;
+  scores: { label: string; score: number }[];
+}
+
+async function fetchRawFinBERTResponse(newsItems: NewsItem[]): Promise<RawSentimentItem[] | null> {
+  if (newsItems.length === 0) return null;
+  try {
+    const API_URL = "https://router.huggingface.co/hf-inference/models/ProsusAI/finbert";
+    const inputs = newsItems.map((item) => item.title);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.HUGGINGFACE_API_KEY) headers["Authorization"] = `Bearer ${process.env.HUGGINGFACE_API_KEY}`;
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ inputs, parameters: { top_k: 3, function_to_apply: "softmax" } }),
+    });
+    if (!response.ok) return null;
+    const results = await response.json();
+    if (results.error) return null;
+    return newsItems.map((item, i) => ({
+      title: item.title,
+      source: item.source,
+      scores: Array.isArray(results[i]) ? results[i] : [],
+    }));
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch raw FinBERT response for a symbol. Used by AI - no aggregation. */
+export async function fetchSentimentForSymbol(symbol: string): Promise<RawSentimentItem[] | null> {
+  try {
+    const microNews = await fetchEODHDNews(symbol.toUpperCase());
+    const macroNews = await fetchMacroNews();
+    const allNews = [...microNews.slice(0, 5), ...macroNews.slice(0, 5)];
+    return await fetchRawFinBERTResponse(allNews);
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch raw FinBERT response for a portfolio. Used by AI - no aggregation. */
+export async function fetchSentimentForPortfolio(symbols: string[]): Promise<RawSentimentItem[] | null> {
+  try {
+    const macroNews = await fetchMacroNews();
+    let allNews = [...macroNews.slice(0, 4)];
+    for (const symbol of symbols.slice(0, 5)) {
+      const microNews = await fetchEODHDNews(symbol.toUpperCase());
+      allNews = [...allNews, ...microNews.slice(0, 2)];
+    }
+    return await fetchRawFinBERTResponse(allNews);
+  } catch {
+    return null;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prices/:symbol", async (req, res) => {
     const { symbol } = req.params;
@@ -1308,6 +1371,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const symbols = portfolioData.holdings.map((h: any) => h.symbol);
+      const sentiment = await fetchSentimentForPortfolio(symbols);
+      if (sentiment && sentiment.length > 0) portfolioData.sentiment = sentiment;
+
       const analysis = await analyzePortfolioWithGemini(portfolioData);
       if (analysis) {
         res.json(analysis);
@@ -1328,6 +1395,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const portfolioSymbols = data.portfolio.holdings.map((h: any) => h.symbol);
+      const sentiment = await fetchSentimentForPortfolio(portfolioSymbols);
+      if (sentiment && sentiment.length > 0) data.portfolio.sentiment = sentiment;
+
       // Fetch real-time prices for major EGX stocks so Gemini uses actual market data
       const majorSymbols = Object.values(EGX_COMPANY_SYMBOL_MAP);
       // Also include portfolio symbols
@@ -1451,11 +1522,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      const sentimentBySymbol: Record<string, import("./gemini-service").RawSentimentItem[]> = {};
+      await Promise.all(
+        symbols.map(async (sym: string) => {
+          const s = await fetchSentimentForSymbol(sym);
+          if (s && s.length > 0) sentimentBySymbol[sym] = s;
+        })
+      );
+
       const compareRequest: CompareStocksRequest = {
         symbols,
         stockData,
         portfolio,
         amountEGP: amountEGP || undefined,
+        ...(Object.keys(sentimentBySymbol).length > 0 && { sentimentBySymbol }),
       };
 
       const result = await compareStocksWithGemini(compareRequest);
@@ -1598,6 +1678,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch {}
 
+      const sentiment = await fetchSentimentForSymbol(symbol);
+
       const stockDataForAI = {
         symbol,
         companyName: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
@@ -1615,6 +1697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceChange90d,
         priceSource: priceData.source,
         fundamentalsSource: financials.source,
+        ...(sentiment && sentiment.length > 0 && { sentiment }),
       };
 
       const result = await runAnalysis(provider, "stock", { data: stockDataForAI });
@@ -1682,6 +1765,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: "Portfolio holdings data required" });
     }
     try {
+      const symbols = portfolioData.holdings.map((h: any) => h.symbol);
+      const sentiment = await fetchSentimentForPortfolio(symbols);
+      if (sentiment && sentiment.length > 0) portfolioData.sentiment = sentiment;
       const result = await runAnalysis(provider, "portfolio", { data: portfolioData });
       if (result.error) {
         return res.status(503).json(result);
@@ -1707,9 +1793,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const portfolioSymbols = data.portfolio.holdings.map((h: any) => h.symbol);
+      const sentiment = await fetchSentimentForPortfolio(portfolioSymbols);
+      if (sentiment && sentiment.length > 0) data.portfolio.sentiment = sentiment;
+
       // Fetch market prices (shared across all providers)
       const majorSymbols = Object.values(EGX_COMPANY_SYMBOL_MAP);
-      const portfolioSymbols = data.portfolio.holdings.map((h: any) => h.symbol);
       const allSymbols = [...new Set([...majorSymbols, ...portfolioSymbols])];
       const marketPrices: Record<string, number> = {};
       await Promise.all(
@@ -1766,7 +1855,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      const compareData = { symbols, stockData, portfolio, amountEGP: amountEGP || undefined };
+      const sentimentBySymbol: Record<string, import("./gemini-service").RawSentimentItem[]> = {};
+      await Promise.all(
+        symbols.map(async (sym: string) => {
+          const s = await fetchSentimentForSymbol(sym);
+          if (s && s.length > 0) sentimentBySymbol[sym] = s;
+        })
+      );
+      const compareData = {
+        symbols,
+        stockData,
+        portfolio,
+        amountEGP: amountEGP || undefined,
+        ...(Object.keys(sentimentBySymbol).length > 0 && { sentimentBySymbol }),
+      };
       const result = await runAnalysis(provider, "compare", { data: compareData });
       if (result.error) {
         return res.status(503).json(result);
@@ -1813,15 +1915,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch {}
 
+      const sentiment = await fetchSentimentForSymbol(symbol);
+
       const stockDataForAI: ManusAnalysisRequest = {
         symbol,
         companyName: EGX_COMPANY_SYMBOL_MAP_REVERSE[symbol] || symbol,
         currentPrice: priceData.price || 0,
-        volume: priceData.volume,
         eps,
         peRatio: financials.peRatio,
         bookValue: financials.bookValue,
-        priceToBook: financials.bookValue && priceData.price ? priceData.price / financials.bookValue : null,
         dividendYield: financials.dividendYield || null,
         sharpeRatio,
         sortinoRatio,
@@ -1830,6 +1932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceChange90d,
         priceSource: priceData.source,
         fundamentalsSource: financials.source,
+        ...(sentiment && sentiment.length > 0 && { sentiment }),
       };
 
       const task = await createManusAnalysis(symbol, stockDataForAI);

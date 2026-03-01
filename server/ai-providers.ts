@@ -243,6 +243,7 @@ Provide a comprehensive portfolio analysis covering:
 4. Diversification quality (sector concentration, single stock risk)
 5. Specific actionable recommendations
 6. Top performers and underperformers
+7. If SENTIMENT data is provided (raw FinBERT scores per headline), incorporate it.
 ${ragContext ? "\nIMPORTANT: Use the financial report data above to enrich your analysis with real company fundamentals, revenue trends, and earnings data where available." : ""}
 
 RESPONSE FORMAT (JSON):
@@ -287,6 +288,7 @@ Consider:
 - Which sectors need more exposure
 - Valuation opportunities in current market
 - Risk management
+- If SENTIMENT data is in the portfolio (raw FinBERT scores per headline), factor it in
 
 CRITICAL: You MUST use the CURRENT REAL-TIME MARKET PRICES provided above for all price references and buy zone calculations. Do NOT rely on your training data for stock prices as they are severely outdated.
 
@@ -323,6 +325,9 @@ export function buildCompareStocksPrompt(data: any, ragContext = ""): string {
   const amountSection = data.amountEGP
     ? `\nThe client has ${data.amountEGP} EGP to deploy.`
     : "";
+  const sentimentSection = data.sentimentBySymbol && Object.keys(data.sentimentBySymbol).length > 0
+    ? `\n\nMARKET SENTIMENT (raw FinBERT response per headline - scores for positive/negative/neutral):\n${JSON.stringify(data.sentimentBySymbol, null, 2)}`
+    : "";
 
   return `You are an expert financial advisor specializing in the Egyptian Exchange (EGX). A client wants you to compare these stocks and advise which to buy.
 
@@ -332,6 +337,7 @@ ${JSON.stringify(data.stockData, null, 2)}
 CLIENT'S CURRENT PORTFOLIO:
 ${JSON.stringify(data.portfolio, null, 2)}
 ${amountSection}
+${sentimentSection}
 ${ragContext}
 
 IMPORTANT: You have FULL FREEDOM to recommend ANY of these outcomes:
@@ -350,6 +356,7 @@ Consider:
 - Diversification impact
 - Whether the portfolio already has enough exposure to certain sectors
 - Market timing - is now a good time or should they wait?
+- If SENTIMENT data (sentimentBySymbol: raw FinBERT scores per headline per stock) is provided, factor it in
 
 RESPONSE FORMAT (JSON):
 {
