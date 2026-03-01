@@ -1156,7 +1156,10 @@ async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<Senti
     const response = await fetch(API_URL, {
       method: "POST",
       headers,
-      body: JSON.stringify({ inputs }),
+      body: JSON.stringify({
+        inputs,
+        parameters: { top_k: 3, function_to_apply: "softmax" },
+      }),
     });
     
     if (!response.ok) {
