@@ -1401,8 +1401,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch real-time prices for major EGX stocks so Gemini uses actual market data
       const majorSymbols = Object.values(EGX_COMPANY_SYMBOL_MAP);
-      // Also include portfolio symbols
-      const portfolioSymbols = data.portfolio.holdings.map(h => h.symbol);
       const allSymbols = [...new Set([...majorSymbols, ...portfolioSymbols])];
 
       const marketPrices: Record<string, number> = {};
