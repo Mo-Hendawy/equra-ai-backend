@@ -1048,30 +1048,92 @@ async function fetchEODHDNews(symbol: string): Promise<NewsItem[]> {
   }
 }
 
+const MACRO_RSS_FEEDS: { url: string; name: string }[] = [
+  { url: "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml", name: "BBC Middle East" },
+  { url: "https://feeds.bbci.co.uk/news/world/africa/rss.xml", name: "BBC Africa" },
+  { url: "https://feeds.bbci.co.uk/news/business/rss.xml", name: "BBC Business" },
+];
+
+function stripCdata(s: string): string {
+  if (!s) return "";
+  return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").trim();
+}
+
+async function fetchRssFeed(feedUrl: string, sourceName: string, maxItems: number): Promise<NewsItem[]> {
+  try {
+    const response = await fetch(feedUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!response.ok) return [];
+    const xml = await response.text();
+    const items: NewsItem[] = [];
+    const itemRegex = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?(?:<pubDate>(.*?)<\/pubDate>|<dc:date>(.*?)<\/dc:date>)[\s\S]*?<\/item>/gi;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null && items.length < maxItems) {
+      let title = (match[1] || "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+      title = stripCdata(title).trim();
+      const dateStr = match[2] || match[3] || "";
+      items.push({
+        date: dateStr ? new Date(dateStr).toISOString() : new Date().toISOString(),
+        title,
+        content: title,
+        source: sourceName,
+      });
+    }
+    return items;
+  } catch (error) {
+    console.error(`RSS feed ${sourceName} error:`, error);
+    return [];
+  }
+}
+
 async function fetchMacroNews(): Promise<NewsItem[]> {
+  const allItems: NewsItem[] = [];
+
   try {
     const url = `${EODHD_BASE_URL}/news?t=egypt&api_token=${EODHD_API_TOKEN}&limit=5&fmt=json`;
     const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    
-    if (!response.ok) {
-      return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
+    if (response.ok) {
+      const text = await response.text();
+      if (!text.includes("exceeded your daily API requests limit") && !text.includes("error")) {
+        try {
+          const data = JSON.parse(text);
+          if (Array.isArray(data) && data.length > 0) {
+            data.forEach((item: any) => allItems.push({
+              date: item.date,
+              title: item.title,
+              content: item.content || item.title,
+              source: "EODHD",
+            }));
+          }
+        } catch {}
+      }
     }
-    
-    const text = await response.text();
-    if (text.includes("exceeded your daily API requests limit") || text.includes("error")) {
-      return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
-    }
-    
-    const data = JSON.parse(text);
-    return data.map((item: any) => ({
-      date: item.date,
-      title: item.title,
-      content: item.content,
-      source: "EODHD Macro"
-    }));
-  } catch (error) {
-    return await fetchGoogleNews("Egypt economy OR Central Bank of Egypt OR Egyptian pound devaluation");
+  } catch {}
+
+  const rssResults = await Promise.all(
+    MACRO_RSS_FEEDS.map((f) => fetchRssFeed(f.url, f.name, 5))
+  );
+  rssResults.forEach((items) => allItems.push(...items));
+
+  const seen = new Set<string>();
+  const deduped = allItems
+    .filter((item) => {
+      const key = item.title.toLowerCase().replace(/\s+/g, " ").trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 15);
+
+  if (deduped.length === 0) {
+    return await fetchGoogleNews("Middle East OR Egypt OR Africa economy");
   }
+  return deduped;
 }
 
 async function analyzeSentimentWithFinBERT(newsItems: NewsItem[]): Promise<SentimentResult | null> {
