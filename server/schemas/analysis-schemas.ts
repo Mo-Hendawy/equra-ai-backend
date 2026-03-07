@@ -92,6 +92,7 @@ export const portfolioAnalysisResultSchema = z.object({
   sectorBreakdown: z.string(),
   topPerformers: z.array(z.string()),
   underperformers: z.array(z.string()),
+  reasoningSteps: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
 });
 
 export type PortfolioAnalysisResultValidated = z.infer<
@@ -117,6 +118,7 @@ export const deployCapitalResultSchema = z.object({
   strategy: z.string().min(1),
   allocations: z.array(allocationSchema),
   reasoning: z.string().min(1),
+  reasoningSteps: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
   riskNote: z.string(),
 });
 
@@ -159,6 +161,7 @@ export const compareStocksResultSchema = z.object({
   rankings: z.array(rankingSchema),
   allocation: z.array(compareAllocationSchema).optional(),
   reasoning: z.string().min(1),
+  reasoningSteps: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
   riskNote: z.string(),
 });
 

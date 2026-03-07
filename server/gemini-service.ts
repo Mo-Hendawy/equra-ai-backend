@@ -466,6 +466,7 @@ export interface PortfolioAnalysisResult {
   sectorBreakdown: string;
   topPerformers: string[];
   underperformers: string[];
+  reasoningSteps?: string[];
 }
 
 export async function analyzePortfolioWithGemini(data: PortfolioAnalysisRequest): Promise<PortfolioAnalysisResult | null> {
@@ -489,6 +490,19 @@ Provide a comprehensive portfolio analysis covering:
 6. Top performers and underperformers
 7. If SENTIMENT data is provided (raw FinBERT scores per headline), incorporate it.
 
+REASONING PROCESS (Chain-of-Thought):
+
+Before your final output, reason step-by-step. Include these steps in your "reasoningSteps" array (4-6 steps minimum):
+
+1. **Portfolio overview**: Total value, cost basis, P/L. Key holdings and weights.
+2. **Diversification**: Sector breakdown. Concentration risk. Single-stock exposure.
+3. **Strengths & weaknesses**: What's working? What's concerning? Use actual numbers.
+4. **Top/underperformers**: Which stocks drive returns? Which drag? Why?
+5. **Recommendations**: Prioritized actions. Reference specific stocks and amounts.
+
+Your JSON MUST include: "reasoningSteps": ["<step 1>", "<step 2>", ...]
+The "summary" field should synthesize these steps.
+
 RESPONSE FORMAT (JSON):
 {
   "overallHealth": "Strong" | "Good" | "Fair" | "Weak",
@@ -500,7 +514,8 @@ RESPONSE FORMAT (JSON):
   "riskLevel": "Low" | "Medium" | "High",
   "sectorBreakdown": "<brief sector concentration analysis>",
   "topPerformers": ["<stock symbol and why>", "<stock symbol and why>"],
-  "underperformers": ["<stock symbol and why>", "<stock symbol and why>"]
+  "underperformers": ["<stock symbol and why>", "<stock symbol and why>"],
+  "reasoningSteps": ["<step 1: portfolio overview>", "<step 2: diversification>", "<step 3: strengths/weaknesses>", "<step 4: performers>", "<step 5: recommendations>"]
 }
 
 Be specific with numbers. Reference actual stocks and values from the portfolio.
@@ -538,6 +553,7 @@ export interface DeployCapitalResult {
     buyZone: { low: number; high: number };
   }[];
   reasoning: string;
+  reasoningSteps?: string[];
   riskNote: string;
 }
 
@@ -574,6 +590,19 @@ Consider:
 
 CRITICAL: You MUST use the CURRENT REAL-TIME MARKET PRICES provided above for all price references and buy zone calculations. Do NOT rely on your training data for stock prices as they are severely outdated.
 
+REASONING PROCESS (Chain-of-Thought):
+
+Before your final output, reason step-by-step. Include these steps in your "reasoningSteps" array (4-6 steps minimum):
+
+1. **Portfolio state**: Current balance, diversification. Which sectors/positions are underweight.
+2. **Opportunities**: Which existing positions to add to? Which new stocks fit? Use real-time prices.
+3. **Allocation logic**: How much to each? Why these percentages? Show the math.
+4. **Buy zones**: Entry ranges based on current prices. Why these levels?
+5. **Risk check**: Does allocation sum correctly? Any concentration concerns?
+
+Your JSON MUST include: "reasoningSteps": ["<step 1>", "<step 2>", ...]
+The "reasoning" field should synthesize these steps.
+
 RESPONSE FORMAT (JSON):
 {
   "strategy": "<brief 1-2 sentence strategy summary>",
@@ -589,6 +618,7 @@ RESPONSE FORMAT (JSON):
     }
   ],
   "reasoning": "<detailed paragraph explaining the overall allocation strategy>",
+  "reasoningSteps": ["<step 1: portfolio state>", "<step 2: opportunities>", "<step 3: allocation logic>", "<step 4: buy zones>", "<step 5: risk check>"],
   "riskNote": "<brief risk disclaimer or caution>"
 }
 
@@ -652,6 +682,7 @@ export interface CompareStocksResult {
     isFromCompared: boolean;
   }[];
   reasoning: string;
+  reasoningSteps?: string[];
   riskNote: string;
 }
 
@@ -697,6 +728,19 @@ Consider:
 - Whether the portfolio already has enough exposure to certain sectors
 - Market timing - is now a good time or should they wait?
 
+REASONING PROCESS (Chain-of-Thought):
+
+Before your final output, reason step-by-step. Include these steps in your "reasoningSteps" array (4-6 steps minimum):
+
+1. **Compare each stock**: Growth, long-term value, valuation. Rank them with scores.
+2. **Portfolio fit**: How does each stock fit with existing holdings? Diversification impact?
+3. **Buy urgency**: Which is "buy now" vs "can wait"? Why?
+4. **Decision**: Which outcome (buy_one, split, existing_stock, dry_powder, mixed)? Why?
+5. **Allocation**: If deploying capital, how to split? Reference actual amounts.
+
+Your JSON MUST include: "reasoningSteps": ["<step 1>", "<step 2>", ...]
+The "reasoning" field should synthesize these steps.
+
 RESPONSE FORMAT (JSON):
 {
   "verdict": "<clear 1-2 sentence verdict, e.g. 'Buy MICH now, SWDY can wait. Consider adding to existing EGAL position instead of ORAS.'>",
@@ -721,6 +765,7 @@ RESPONSE FORMAT (JSON):
     }
   ],
   "reasoning": "<detailed paragraph explaining your recommendation and why>",
+  "reasoningSteps": ["<step 1: compare each stock>", "<step 2: portfolio fit>", "<step 3: buy urgency>", "<step 4: decision>", "<step 5: allocation>"],
   "riskNote": "<brief risk disclaimer>"
 }
 
