@@ -11,6 +11,7 @@ Backend API server for Equra AI mobile app - Egyptian Stock Exchange (EGX) portf
 
 ## Environment Variables
 - `GEMINI_API_KEY` – Google Gemini API key (AI + embeddings)
+- `EODHD_API_TOKEN` – EOD Historical Data API token (prices, news, historical data)
 - `PORT` – Server port (default: 5000)
 - `NODE_ENV` – Environment (development/production)
 
@@ -61,7 +62,7 @@ Stock analysis uses RAG to inject relevant chunks from company financial PDFs in
 
 ## Deploy to Railway
 1. Connect this repo to Railway
-2. Set environment variable: `GEMINI_API_KEY`
+2. Set environment variables: `GEMINI_API_KEY`, `EODHD_API_TOKEN`
 3. Railway will auto-deploy
 
 ## Local Development
