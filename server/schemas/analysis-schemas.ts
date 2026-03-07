@@ -13,20 +13,38 @@ const fairValueRangeSchema = z.object({
 });
 
 // ─── Stock Analysis (GeminiAnalysis) ───
+// Use transforms to accept LLM variations (e.g. "undervalued", "Slightly Undervalued")
 
-const recommendationSchema = z.enum([
-  "Strong Buy",
-  "Buy",
-  "Hold",
-  "Sell",
-  "Strong Sell",
-]);
+const recommendationSchema = z.string().transform((s) => {
+  const v = (s || "").toLowerCase();
+  if (v.includes("strong") && v.includes("buy")) return "Strong Buy";
+  if (v.includes("strong") && v.includes("sell")) return "Strong Sell";
+  if (v === "buy") return "Buy";
+  if (v === "sell") return "Sell";
+  if (v === "hold") return "Hold";
+  return "Hold";
+});
 
-const confidenceSchema = z.enum(["High", "Medium", "Low"]);
+const confidenceSchema = z.string().transform((s) => {
+  const v = (s || "").toLowerCase();
+  if (v.includes("high")) return "High";
+  if (v.includes("low")) return "Low";
+  return "Medium";
+});
 
-const riskLevelSchema = z.enum(["Low", "Medium", "High"]);
+const riskLevelSchema = z.string().transform((s) => {
+  const v = (s || "").toLowerCase();
+  if (v.includes("high")) return "High";
+  if (v.includes("low")) return "Low";
+  return "Medium";
+});
 
-const valuationStatusSchema = z.enum(["Undervalued", "Fair", "Overvalued"]);
+const valuationStatusSchema = z.string().transform((s) => {
+  const v = (s || "").toLowerCase();
+  if (v.includes("under")) return "Undervalued";
+  if (v.includes("over")) return "Overvalued";
+  return "Fair";
+});
 
 export const geminiAnalysisSchema = z.object({
   fairValueEstimate: z.number().nullable(),
@@ -43,11 +61,11 @@ export const geminiAnalysisSchema = z.object({
   confidence: confidenceSchema,
   reasoning: z.string().min(1),
   riskLevel: riskLevelSchema,
-  keyPoints: z.array(z.string()),
-  analysisMethod: z.string(),
+  keyPoints: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
+  analysisMethod: z.string().default(""),
   valuationStatus: valuationStatusSchema,
-  simpleExplanation: z.array(z.string()),
-  riskSignals: z.array(z.string()),
+  simpleExplanation: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
+  riskSignals: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
 });
 
 export type GeminiAnalysisValidated = z.infer<typeof geminiAnalysisSchema>;

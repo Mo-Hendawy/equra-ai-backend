@@ -108,12 +108,43 @@ function cleanJsonResponse(text: string): string {
   const start = jsonStart >= 0 && (jsonArrStart < 0 || jsonStart < jsonArrStart) ? jsonStart : jsonArrStart;
   if (start > 0) cleaned = cleaned.substring(start);
 
+  // If model appended text after JSON (e.g. "Unexpected token H"), truncate at last valid }
+  let candidate = cleaned;
+  const bracePositions: number[] = [];
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let quote = "";
+  for (let i = 0; i < candidate.length; i++) {
+    const ch = candidate[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (inString) {
+      if (ch === quote) inString = false;
+      continue;
+    }
+    if (ch === '"' || ch === "'") { inString = true; quote = ch; continue; }
+    if (ch === "{") depth++;
+    else if (ch === "}") { bracePositions.push(i); depth--; }
+  }
+  // Try from last } backwards until we get valid JSON
+  for (let j = bracePositions.length - 1; j >= 0; j--) {
+    const slice = candidate.substring(0, bracePositions[j] + 1);
+    try {
+      JSON.parse(slice);
+      candidate = slice;
+      break;
+    } catch {
+      continue;
+    }
+  }
+
   // Try to fix truncated JSON by closing open braces/brackets
   try {
-    JSON.parse(cleaned);
-    return cleaned;
+    JSON.parse(candidate);
+    return candidate;
   } catch {
-    let fixed = cleaned;
+    let fixed = candidate;
     let openBraces = 0, openBrackets = 0;
     let inString = false, escape = false;
     for (const ch of fixed) {
