@@ -221,7 +221,9 @@ async function fetchEODHDPrice(symbol: string): Promise<StockPrice | null> {
 
     if (!response.ok) {
       console.error(`EODHD price fetch failed for ${symbol}: ${response.status}`);
-      // Try to use stale cache if API fails
+      // 402 = Payment Required (quota exceeded). Return null so we fall through to TradingView/CNBC.
+      if (response.status === 402) return null;
+      // Other errors: try stale cache
       const stale = await getStaleCache<StockPrice>(`price_${symbol}`);
       return stale;
     }
@@ -406,6 +408,12 @@ async function fetchStockPrice(symbol: string): Promise<StockPrice> {
 
   if (priceData) {
     return priceData;
+  }
+
+  // Last resort: use stale cache when all live sources failed
+  const stale = await getStaleCache<StockPrice>(`price_${symbol}`);
+  if (stale && stale.price) {
+    return { ...stale, source: `${stale.source || "Cached"} (Stale)` };
   }
 
   return {
