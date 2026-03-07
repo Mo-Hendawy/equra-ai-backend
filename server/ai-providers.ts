@@ -55,8 +55,6 @@ export function isProviderConfigured(provider: ProviderName): boolean {
 function isProviderAvailable(provider: ProviderName): boolean {
   switch (provider) {
     case "gemini": return !!(process.env.GEMINI_API_KEY);
-    case "deepseek": return !!(process.env.OPENROUTER_API_KEY);
-    case "kimi": return !!(process.env.OPENROUTER_API_KEY);
     case "groq": return !!(process.env.GROQ_API_KEY);
     case "cerebras": return !!(process.env.CEREBRAS_API_KEY);
     case "huggingface": return !!(process.env.HUGGINGFACE_API_KEY);
@@ -66,9 +64,9 @@ function isProviderAvailable(provider: ProviderName): boolean {
   }
 }
 
-console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, OpenRouter=${!!process.env.OPENROUTER_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
+console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
 
-export type ProviderName = "gemini" | "deepseek" | "kimi" | "groq" | "cerebras" | "huggingface" | "huggingface-qwen" | "huggingface-mistral";
+export type ProviderName = "gemini" | "groq" | "cerebras" | "huggingface" | "huggingface-qwen" | "huggingface-mistral";
 
 interface ProviderConfig {
   name: string;
@@ -78,8 +76,6 @@ interface ProviderConfig {
 
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
-  deepseek: { name: "DeepSeek V3.2 (OpenRouter)", model: "deepseek/deepseek-v3.2" },
-  kimi: { name: "Kimi K2.5 (OpenRouter)", model: "moonshotai/kimi-k2.5" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
   cerebras: { name: "GPT-OSS 120B (Cerebras)", model: "gpt-oss-120b" },
   huggingface: { name: "HuggingFace Llama 3.2", model: "meta-llama/Llama-3.2-3B-Instruct" },
@@ -229,16 +225,6 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
   switch (provider) {
     case "gemini":
       return callWithRetry(() => callGemini(prompt));
-    case "deepseek": {
-      const client = getOpenRouterClient();
-      if (!client) throw new Error("OpenRouter API key not configured");
-      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.deepseek.model, prompt));
-    }
-    case "kimi": {
-      const client = getOpenRouterClient();
-      if (!client) throw new Error("OpenRouter API key not configured");
-      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.kimi.model, prompt));
-    }
     case "groq": {
       const client = getGroqClient();
       if (!client) throw new Error("Groq API key not configured");
@@ -558,7 +544,7 @@ function extractSymbols(data: any): string[] {
 
 // ─── Trusted providers for stock analysis ───
 
-export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "deepseek", "groq", "huggingface", "huggingface-qwen", "huggingface-mistral"];
+export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "groq", "huggingface", "huggingface-qwen", "huggingface-mistral"];
 
 // ─── Execute analysis for a single provider ───
 
