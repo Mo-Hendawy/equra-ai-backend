@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getCached, setCache, getStaleCache } from "./api-cache";
+import {
+  validateAnalysis,
+  logValidationFailure,
+} from "./schemas/analysis-schemas";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
@@ -247,27 +251,30 @@ Respond ONLY with valid JSON, no markdown formatting or additional text.`;
     
     const text = await callGeminiWithRetry(prompt);
 
-    // Parse the JSON response
-    let analysisData: GeminiAnalysis;
+    // Parse and validate the JSON response
     try {
       const cleanedText = cleanJsonResponse(text);
-      analysisData = JSON.parse(cleanedText);
-      
-      // Validate required fields
-      if (!analysisData.recommendation || !analysisData.reasoning) {
-        throw new Error("Missing required fields in Gemini response");
+      const parsed = JSON.parse(cleanedText);
+
+      const validated = validateAnalysis<GeminiAnalysis>("stock", parsed);
+
+      if (!validated.success) {
+        logValidationFailure("stock", stockData.symbol, validated);
+        const stale = await getStaleCache<GeminiAnalysis>(`gemini_analysis_${stockData.symbol}`);
+        return stale;
       }
 
+      const analysisData = validated.data;
       console.log(`Gemini analysis completed for ${stockData.symbol}: ${analysisData.recommendation}`);
-      
+
       // Cache the successful analysis
       await setCache(`gemini_analysis_${stockData.symbol}`, analysisData);
-      
+
       return analysisData;
     } catch (parseError) {
       console.error("Failed to parse Gemini response:", parseError);
-      console.log("Raw response:", text);
-      
+      console.log("Raw response:", text?.slice?.(0, 500));
+
       // Try stale cache on parse error
       const stale = await getStaleCache<GeminiAnalysis>(`gemini_analysis_${stockData.symbol}`);
       return stale;
@@ -476,7 +483,13 @@ Be specific with numbers. Reference actual stocks and values from the portfolio.
 Respond ONLY with valid JSON, no markdown.`;
 
     const text = await callGeminiWithRetry(prompt);
-    return JSON.parse(cleanJsonResponse(text));
+    const parsed = JSON.parse(cleanJsonResponse(text));
+    const validated = validateAnalysis<PortfolioAnalysisResult>("portfolio", parsed);
+    if (!validated.success) {
+      logValidationFailure("portfolio", "portfolio-analysis", validated);
+      return null;
+    }
+    return validated.data;
   } catch (error) {
     console.error("Portfolio analysis error:", error);
     return null;
@@ -565,7 +578,13 @@ IMPORTANT:
 Respond ONLY with valid JSON, no markdown.`;
 
     const text = await callGeminiWithRetry(prompt);
-    return JSON.parse(cleanJsonResponse(text));
+    const parsed = JSON.parse(cleanJsonResponse(text));
+    const validated = validateAnalysis<DeployCapitalResult>("deploy", parsed);
+    if (!validated.success) {
+      logValidationFailure("deploy", `deploy-${data.amountToDeployEGP}`, validated);
+      return null;
+    }
+    return validated.data;
   } catch (error) {
     console.error("Deploy capital analysis error:", error);
     return null;
@@ -691,7 +710,13 @@ IMPORTANT:
 Respond ONLY with valid JSON, no markdown.`;
 
     const text = await callGeminiWithRetry(prompt);
-    return JSON.parse(cleanJsonResponse(text));
+    const parsed = JSON.parse(cleanJsonResponse(text));
+    const validated = validateAnalysis<CompareStocksResult>("compare", parsed);
+    if (!validated.success) {
+      logValidationFailure("compare", data.symbols.join(","), validated);
+      return null;
+    }
+    return validated.data;
   } catch (error) {
     console.error("Compare stocks error:", error);
     return null;

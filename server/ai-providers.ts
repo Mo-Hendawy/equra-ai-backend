@@ -3,6 +3,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 import * as path from "path";
 import { getStockAnalysisContext, getMultiStockContext } from "./rag-service";
+import {
+  validateAnalysis,
+  logValidationFailure,
+  type SchemaType,
+} from "./schemas/analysis-schemas";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -583,7 +588,29 @@ export async function runAnalysis(
     for (let jsonAttempt = 0; jsonAttempt < MAX_JSON_RETRIES; jsonAttempt++) {
       const text = await callProvider(provider, prompt);
       try {
-        result = JSON.parse(cleanJsonResponse(text));
+        const parsed = JSON.parse(cleanJsonResponse(text));
+
+        // Schema validation
+        const schemaType: SchemaType = type;
+        const validated = validateAnalysis(schemaType, parsed);
+
+        if (!validated.success) {
+          logValidationFailure(schemaType, `${config.name}-${type}`, validated);
+          if (jsonAttempt === MAX_JSON_RETRIES - 1) {
+            return {
+              provider,
+              providerName: config.name,
+              model: config.model,
+              result: null,
+              error: `Analysis failed: Schema validation failed (${validated.errors.slice(0, 3).join("; ")})`,
+              durationMs: Date.now() - start,
+            };
+          }
+          console.log(`${config.name} retrying due to schema validation failure...`);
+          continue;
+        }
+
+        result = validated.data;
         break;
       } catch (parseError: any) {
         console.error(`${config.name} ${type} JSON parse failed (attempt ${jsonAttempt + 1}/${MAX_JSON_RETRIES}):`, parseError.message);
