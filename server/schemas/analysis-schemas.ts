@@ -60,6 +60,7 @@ export const geminiAnalysisSchema = z.object({
   recommendation: recommendationSchema,
   confidence: confidenceSchema,
   reasoning: z.string().min(1),
+  reasoningSteps: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
   riskLevel: riskLevelSchema,
   keyPoints: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
   analysisMethod: z.string().default(""),

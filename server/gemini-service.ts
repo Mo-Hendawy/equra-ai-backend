@@ -121,6 +121,7 @@ export interface GeminiAnalysis {
   recommendation: "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell";
   confidence: "High" | "Medium" | "Low";
   reasoning: string;
+  reasoningSteps?: string[];
   riskLevel: "Low" | "Medium" | "High";
   keyPoints: string[];
   
@@ -190,6 +191,32 @@ IMPORTANT CONTEXT:
 - Be specific with numbers and reasoning
 - Make the analysis detailed and actionable
 
+REASONING PROCESS (Chain-of-Thought):
+
+Before your final recommendation, reason step-by-step. Include these steps in your "reasoningSteps" array (4-6 steps minimum):
+
+1. **Data check**: What price, fundamentals, and sentiment do we have? What's missing?
+   Example: "Have: P/E=10, EPS=2.5, price=25. Missing: 52-week range. Sentiment: 3 headlines, avg positive."
+
+2. **Valuation**: Apply each method with actual numbers. Show your math.
+   - P/E: fair value = EPS × target P/E = ...
+   - Graham: sqrt(22.5 × EPS × BV) = ...
+   - P/B if applicable: ...
+
+3. **Zone derivation**: How you derived each zone from fair value.
+   - Strong Buy: typically 20-30% below fair value because...
+   - Buy: 10-20% below...
+   - Hold: ±10% around fair value...
+
+4. **Risk assessment**: Interpret Sharpe/Sortino. What do they imply for this stock?
+
+5. **Conclusion**: Why this recommendation? Why this confidence level?
+
+Your JSON MUST include:
+"reasoningSteps": ["<step 1 text>", "<step 2 text>", ...]
+
+The "reasoning" field should be a 2-3 paragraph summary synthesizing these steps.
+
 RESPONSE FORMAT (JSON):
 {
   "fairValueEstimate": <number or null>,
@@ -204,7 +231,8 @@ RESPONSE FORMAT (JSON):
   "thirdTarget": <number>,
   "recommendation": "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Sell",
   "confidence": "High" | "Medium" | "Low",
-  "reasoning": "<DETAILED multi-paragraph analysis covering market overview, fair value rationale, entry zones explanation, risk factors, and actionable recommendations. Make this at least 300-500 words with specific numbers and detailed reasoning>",
+  "reasoningSteps": ["<step 1: data check>", "<step 2: valuation math>", "<step 3: zone derivation>", "<step 4: risk assessment>", "<step 5: conclusion rationale>"],
+  "reasoning": "<2-3 paragraph summary synthesizing the reasoning steps above>",
   "riskLevel": "Low" | "Medium" | "High",
   "keyPoints": [
     "<Detailed point about current market position with numbers>",
@@ -227,12 +255,7 @@ RESPONSE FORMAT (JSON):
   ]
 }
 
-Make the reasoning field VERY DETAILED - include:
-- Market Overview paragraph
-- Fair Value Analysis paragraph with multiple methods
-- Entry Zones paragraph explaining each level
-- Risk Assessment paragraph
-- Conclusion with actionable recommendations
+The reasoning field should synthesize your reasoningSteps into a coherent 2-3 paragraph summary (market overview, valuation rationale, zones, risk, conclusion).
 
 IMPORTANT for simpleExplanation:
 - Keep each bullet short and clear (max 25 words)
@@ -384,6 +407,7 @@ export function createFallbackAnalysis(
     reasoning: fairValue 
       ? `Based on fundamental analysis with fair value of ${fairValue.toFixed(2)} EGP. Stock is trading at ${((currentPrice / fairValue - 1) * 100).toFixed(1)}% ${currentPrice > fairValue ? 'above' : 'below'} fair value.`
       : "Limited fundamental data available. Recommendation based on risk-adjusted returns and price trends.",
+    reasoningSteps: [],
     riskLevel: sharpeRatio && sharpeRatio > 1.5 ? "Low" : sharpeRatio && sharpeRatio > 0.5 ? "Medium" : "High",
     keyPoints: [
       fairValue ? `Fair value: ${fairValue.toFixed(2)} EGP` : "Fair value not calculable",
