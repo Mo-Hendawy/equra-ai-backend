@@ -623,7 +623,7 @@ export async function runAnalysis(
     case "portfolio": {
       const symbols = extractSymbols(promptData.data);
       const { context, symbolsWithData } = symbols.length > 0
-        ? await getMultiStockContext(symbols) : { context: "", symbolsWithData: [] };
+        ? await getMultiStockContext(symbols, "portfolio") : { context: "", symbolsWithData: [] };
       ragUsed = symbolsWithData.length > 0;
       prompt = buildPortfolioAnalysisPrompt(promptData.data, context);
       break;
@@ -631,7 +631,7 @@ export async function runAnalysis(
     case "deploy": {
       const symbols = extractSymbols(promptData.data?.portfolio);
       const { context, symbolsWithData } = symbols.length > 0
-        ? await getMultiStockContext(symbols) : { context: "", symbolsWithData: [] };
+        ? await getMultiStockContext(symbols, "deploy") : { context: "", symbolsWithData: [] };
       ragUsed = symbolsWithData.length > 0;
       prompt = buildDeployCapitalPrompt(promptData.data, promptData.marketPrices, context);
       break;
@@ -641,7 +641,7 @@ export async function runAnalysis(
       const portfolioSymbols = extractSymbols(promptData.data?.portfolio);
       const allSymbols = [...new Set([...compareSymbols, ...portfolioSymbols])];
       const { context, symbolsWithData } = allSymbols.length > 0
-        ? await getMultiStockContext(allSymbols) : { context: "", symbolsWithData: [] };
+        ? await getMultiStockContext(allSymbols, "compare") : { context: "", symbolsWithData: [] };
       ragUsed = symbolsWithData.length > 0;
       prompt = buildCompareStocksPrompt(promptData.data, context);
       break;

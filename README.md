@@ -14,10 +14,16 @@ Backend API server for Equra AI mobile app - Egyptian Stock Exchange (EGX) portf
 - `EODHD_API_TOKEN` – EOD Historical Data API token (prices, news, historical data)
 - `PORT` – Server port (default: 5000)
 - `NODE_ENV` – Environment (development/production)
+- `RAG_HYBRID_ENABLED` – Set to `false` to disable hybrid RAG (query expansion + keyword re-ranking). Default: enabled.
 
 ## RAG: Financial Reports
 
 Stock analysis uses RAG to inject relevant chunks from company financial PDFs into prompts.
+
+**RAG improvements (hybrid retrieval):**
+- **Query expansion** – Multiple query variants (valuation, earnings, balance sheet) for better recall
+- **RRF merge** – Reciprocal Rank Fusion to combine results from each variant
+- **Keyword re-ranking** – Score chunks by term overlap with query for better precision
 
 ### Setup
 
