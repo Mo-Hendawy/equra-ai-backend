@@ -57,16 +57,14 @@ function isProviderAvailable(provider: ProviderName): boolean {
     case "gemini": return !!(process.env.GEMINI_API_KEY);
     case "groq": return !!(process.env.GROQ_API_KEY);
     case "cerebras": return !!(process.env.CEREBRAS_API_KEY);
-    case "huggingface": return !!(process.env.HUGGINGFACE_API_KEY);
     case "huggingface-qwen": return !!(process.env.HUGGINGFACE_API_KEY);
-    case "huggingface-mistral": return !!(process.env.HUGGINGFACE_API_KEY);
     default: return false;
   }
 }
 
 console.log(`AI Providers at startup: Gemini=${!!process.env.GEMINI_API_KEY}, Groq=${!!process.env.GROQ_API_KEY}, Cerebras=${!!process.env.CEREBRAS_API_KEY}`);
 
-export type ProviderName = "gemini" | "groq" | "cerebras" | "huggingface" | "huggingface-qwen" | "huggingface-mistral";
+export type ProviderName = "gemini" | "groq" | "cerebras" | "huggingface-qwen";
 
 interface ProviderConfig {
   name: string;
@@ -78,9 +76,7 @@ export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> &
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
   cerebras: { name: "GPT-OSS 120B (Cerebras)", model: "gpt-oss-120b" },
-  huggingface: { name: "HuggingFace Llama 3.2", model: "meta-llama/Llama-3.2-3B-Instruct" },
   "huggingface-qwen": { name: "HuggingFace Qwen 2.5", model: "Qwen/Qwen2.5-72B-Instruct" },
-  "huggingface-mistral": { name: "HuggingFace Mistral 7B", model: "mistralai/Mistral-7B-Instruct-v0.3" },
 };
 
 // ─── Helper: clean JSON from LLM response ───
@@ -235,20 +231,10 @@ export async function callProvider(provider: ProviderName, prompt: string): Prom
       if (!client) throw new Error("Cerebras API key not configured");
       return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.cerebras.model, prompt));
     }
-    case "huggingface": {
-      const client = getHuggingFaceClient();
-      if (!client) throw new Error("HuggingFace API key not configured");
-      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS.huggingface.model, prompt));
-    }
     case "huggingface-qwen": {
       const client = getHuggingFaceClient();
       if (!client) throw new Error("HuggingFace API key not configured");
       return callWithRetry(() => callOpenAICompatible(client, PROVIDERS["huggingface-qwen"].model, prompt));
-    }
-    case "huggingface-mistral": {
-      const client = getHuggingFaceClient();
-      if (!client) throw new Error("HuggingFace API key not configured");
-      return callWithRetry(() => callOpenAICompatible(client, PROVIDERS["huggingface-mistral"].model, prompt));
     }
     default:
       throw new Error(`Unknown provider: ${provider}`);
@@ -544,7 +530,7 @@ function extractSymbols(data: any): string[] {
 
 // ─── Trusted providers for stock analysis ───
 
-export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "groq", "huggingface", "huggingface-qwen", "huggingface-mistral"];
+export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "groq", "cerebras", "huggingface-qwen"];
 
 // ─── Execute analysis for a single provider ───
 
@@ -607,9 +593,31 @@ export async function runAnalysis(
 
   try {
     let result: any;
-    const MAX_JSON_RETRIES = 2;
-    for (let jsonAttempt = 0; jsonAttempt < MAX_JSON_RETRIES; jsonAttempt++) {
-      const text = await callProvider(provider, prompt);
+    const MAX_RETRIES = 2;
+    let lastValidationErrors: string[] = [];
+    let lastParseError: string = "";
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      // Build prompt: on retry, append self-correction feedback
+      let currentPrompt = prompt;
+      if (attempt > 0) {
+        const feedbackParts: string[] = [];
+        if (lastValidationErrors.length > 0) {
+          feedbackParts.push(
+            `[IMPORTANT - Your previous response had schema validation errors. Please fix and respond with valid JSON only.]\nValidation errors:\n${lastValidationErrors.slice(0, 5).join("\n")}`
+          );
+        }
+        if (lastParseError) {
+          feedbackParts.push(
+            `[IMPORTANT - Your previous response was invalid JSON (${lastParseError}). Respond with valid JSON only - no markdown fences, no text before or after the JSON.]`
+          );
+        }
+        if (feedbackParts.length > 0) {
+          currentPrompt = `${prompt}\n\n---\n${feedbackParts.join("\n\n")}`;
+        }
+      }
+
+      const text = await callProvider(provider, currentPrompt);
       try {
         const rawText = typeof text === "string" ? text : "";
         const parsed = JSON.parse(cleanJsonResponse(rawText));
@@ -620,7 +628,9 @@ export async function runAnalysis(
 
         if (!validated.success) {
           logValidationFailure(schemaType, `${config.name}-${type}`, validated);
-          if (jsonAttempt === MAX_JSON_RETRIES - 1) {
+          lastValidationErrors = validated.errors;
+          lastParseError = "";
+          if (attempt === MAX_RETRIES - 1) {
             return {
               provider,
               providerName: config.name,
@@ -630,15 +640,17 @@ export async function runAnalysis(
               durationMs: Date.now() - start,
             };
           }
-          console.log(`${config.name} retrying due to schema validation failure...`);
+          console.log(`${config.name} retrying with validation error feedback...`);
           continue;
         }
 
         result = validated.data;
         break;
       } catch (parseError: any) {
-        console.error(`${config.name} ${type} JSON parse failed (attempt ${jsonAttempt + 1}/${MAX_JSON_RETRIES}):`, parseError.message);
-        if (jsonAttempt === MAX_JSON_RETRIES - 1) {
+        console.error(`${config.name} ${type} JSON parse failed (attempt ${attempt + 1}/${MAX_RETRIES}):`, parseError.message);
+        lastParseError = parseError.message || "parse error";
+        lastValidationErrors = [];
+        if (attempt === MAX_RETRIES - 1) {
           return {
             provider,
             providerName: config.name,
@@ -648,7 +660,7 @@ export async function runAnalysis(
             durationMs: Date.now() - start,
           };
         }
-        console.log(`${config.name} retrying due to JSON parse failure...`);
+        console.log(`${config.name} retrying with parse error feedback...`);
       }
     }
 
