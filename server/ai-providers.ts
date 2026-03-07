@@ -162,7 +162,13 @@ async function callOpenAICompatible(
     temperature: 0.7,
     max_tokens: 8192,
   });
-  return response.choices[0]?.message?.content || "";
+  const content = response.choices[0]?.message?.content;
+  // Some APIs (e.g. Groq) return content as array of parts: [{ type: "text", text: "..." }]
+  if (Array.isArray(content)) {
+    const textPart = content.find((p: any) => p?.type === "text" && typeof p?.text === "string");
+    return textPart?.text ?? "";
+  }
+  return typeof content === "string" ? content : "";
 }
 
 // ─── Retry wrapper ───
@@ -588,7 +594,8 @@ export async function runAnalysis(
     for (let jsonAttempt = 0; jsonAttempt < MAX_JSON_RETRIES; jsonAttempt++) {
       const text = await callProvider(provider, prompt);
       try {
-        const parsed = JSON.parse(cleanJsonResponse(text));
+        const rawText = typeof text === "string" ? text : "";
+        const parsed = JSON.parse(cleanJsonResponse(rawText));
 
         // Schema validation
         const schemaType: SchemaType = type;

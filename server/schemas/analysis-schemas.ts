@@ -185,9 +185,10 @@ export function validateAnalysis<T>(
     return { success: true, data: result.data as T };
   }
 
-  const errors = result.error.errors.map(
-    (e) => `${e.path.join(".")}: ${e.message}`
-  );
+  const errs = result.error?.errors;
+  const errors = Array.isArray(errs)
+    ? errs.map((e: any) => `${(e.path || []).join(".")}: ${e.message}`)
+    : [String(result.error)];
 
   return {
     success: false,
