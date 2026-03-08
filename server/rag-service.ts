@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as lancedb from "@lancedb/lancedb";
-import { getExpandedQueries } from "./rag/query-expansion";
+import { getExpandedQueries } from "./rag/hybrid-retrieval";
 import { mergeAndRerank } from "./rag/hybrid-retrieval";
 import type { RagTaskType } from "./rag/query-expansion";
 
