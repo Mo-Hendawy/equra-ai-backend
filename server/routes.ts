@@ -57,6 +57,7 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
   "A Capital Holding": "ACAP",
   "Arabia Investments Holding": "AIND",
   "Tanmiya for Real Estate Investment": "TMEI",
+  "Obour Land for Food Industries": "OLFI",
 };
 
 // Reverse mapping for company names
@@ -132,6 +133,7 @@ const EGX_PE_DATA: Record<string, EGXFinancialData & { eps?: number }> = {
   "EDFM": { peRatio: 8.24, dividendYield: 7.08 }, // East Delta Flour Mills
   "UEFM": { peRatio: 11.07, dividendYield: 4.54 }, // Upper Egypt Flour Mills
   "SCGM": { peRatio: 253.50, dividendYield: 0 }, // South Cairo & Giza Mills & Bakeries
+  "OLFI": { peRatio: 12.54, dividendYield: 6.46 }, // Obour Land for Food Industries
 };
 
 async function fetchEGXFinancialData(): Promise<Map<string, EGXFinancialData>> {
