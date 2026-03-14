@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import * as fs from "fs";
 import * as path from "path";
 import { getCached, setCache, getStaleCache } from "./api-cache";
-import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
+import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, compareAnalysisNarrative, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
 import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
 import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
@@ -1715,6 +1715,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Stock analysis failed" });
+    }
+  });
+
+  // Compare prior vs current analysis (AI narrative for "Compare to last week")
+  app.post("/api/ai/compare-analysis", async (req, res) => {
+    const { prior, current, symbol } = req.body;
+    if (!prior || !current || !symbol) {
+      return res.status(400).json({ error: "prior, current, and symbol required" });
+    }
+    try {
+      const narrative = await compareAnalysisNarrative(prior, current, symbol);
+      res.json({ narrative });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Compare analysis failed" });
     }
   });
 

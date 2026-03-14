@@ -311,6 +311,36 @@ Respond ONLY with valid JSON, no markdown formatting or additional text.`;
   }
 }
 
+/** Compare prior vs current analysis and return AI-generated narrative */
+export async function compareAnalysisNarrative(
+  prior: GeminiAnalysis,
+  current: GeminiAnalysis,
+  symbol: string
+): Promise<string> {
+  if (!genAI || !GEMINI_API_KEY) {
+    return "";
+  }
+  const prompt = `You are an expert EGX stock analyst. Compare two analyses of ${symbol} and write a brief "What changed" summary (2-4 sentences).
+
+PRIOR ANALYSIS:
+- Recommendation: ${prior.recommendation}
+- Confidence: ${prior.confidence}
+- Fair value: ${prior.fairValueEstimate ?? "N/A"} EGP
+- Valuation: ${prior.valuationStatus}
+- Key points: ${(prior.keyPoints || []).slice(0, 2).join("; ") || "N/A"}
+
+CURRENT ANALYSIS:
+- Recommendation: ${current.recommendation}
+- Confidence: ${current.confidence}
+- Fair value: ${current.fairValueEstimate ?? "N/A"} EGP
+- Valuation: ${current.valuationStatus}
+- Key points: ${(current.keyPoints || []).slice(0, 2).join("; ") || "N/A"}
+
+Write a concise narrative explaining what changed and why (e.g., fair value revision, sentiment shift, new data). Plain language, no jargon. 2-4 sentences max. No JSON, just the text.`;
+  const text = await callGeminiWithRetry(prompt, { temperature: 0.5, maxOutputTokens: 256 });
+  return text.trim();
+}
+
 // Fallback analysis when Gemini is not available or fails
 export function createFallbackAnalysis(
   symbol: string,
