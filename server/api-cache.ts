@@ -74,6 +74,24 @@ export async function getStaleCache<T>(key: string): Promise<T | null> {
   }
 }
 
+/** Returns cache entry with data and timestamp. Does not check TTL. */
+export async function getCacheEntry<T>(key: string): Promise<{ data: T; timestamp: number } | null> {
+  try {
+    const cachePath = path.join(CACHE_DIR, `${key}.json`);
+
+    if (!fs.existsSync(cachePath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(cachePath, "utf-8");
+    const entry: CacheEntry<T> = JSON.parse(content);
+    return { data: entry.data, timestamp: entry.timestamp };
+  } catch (error) {
+    console.error(`Cache entry read error for ${key}:`, error);
+    return null;
+  }
+}
+
 export function clearCache(): void {
   try {
     if (fs.existsSync(CACHE_DIR)) {

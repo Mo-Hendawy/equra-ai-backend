@@ -2,12 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import * as fs from "fs";
 import * as path from "path";
-import { getCached, setCache, getStaleCache } from "./api-cache";
+import { getCached, setCache, getStaleCache, getCacheEntry } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, compareAnalysisNarrative, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage } from "./vision-service";
 import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
 import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
 import { manusWebhookHandler } from "./manus-webhook-handler";
+import { deriveStockSummary } from "./utils/summary";
 
 const EODHD_API_TOKEN = process.env.EODHD_API_TOKEN || "";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -1343,6 +1344,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analysis);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analysis" });
+    }
+  });
+
+  app.get("/api/stock/:symbol/summary", async (req, res) => {
+    const { symbol } = req.params;
+    const refresh = req.query.refresh === "true";
+    const symbolUpper = symbol.toUpperCase();
+
+    const validSymbols = new Set([
+      ...Object.keys(EGX_PE_DATA),
+      ...Object.values(EGX_COMPANY_SYMBOL_MAP),
+    ]);
+    if (!validSymbols.has(symbolUpper)) {
+      return res.status(400).json({ error: "Unknown EGX symbol" });
+    }
+
+    try {
+      const [priceData, financials] = await Promise.all([
+        fetchStockPrice(symbolUpper),
+        fetchStockFinancials(symbolUpper),
+      ]);
+
+      const analysis = await calculateAnalysis(symbolUpper, priceData, financials, refresh);
+
+      let cacheTimestamp: number | null = null;
+      const cacheEntry = await getCacheEntry(`gemini_analysis_${symbolUpper}`);
+      if (cacheEntry) {
+        cacheTimestamp = cacheEntry.timestamp;
+      }
+
+      const companyName = EGX_COMPANY_SYMBOL_MAP_REVERSE[symbolUpper] || symbolUpper;
+      const summary = deriveStockSummary(
+        symbolUpper,
+        companyName,
+        {
+          symbol: analysis.symbol,
+          currentPrice: analysis.currentPrice,
+          fairValueAvg: analysis.fairValueAvg,
+          recommendation: analysis.recommendation,
+          priceSource: analysis.priceSource,
+          geminiConfidence: analysis.geminiConfidence,
+          geminiRiskLevel: analysis.geminiRiskLevel,
+          geminiReasoning: analysis.geminiReasoning,
+          valuationStatus: (analysis as { valuationStatus?: "Undervalued" | "Fair" | "Overvalued" }).valuationStatus,
+          simpleExplanation: (analysis as { simpleExplanation?: string[] }).simpleExplanation,
+          strongBuyZone: analysis.strongBuyZone,
+          buyZone: analysis.buyZone,
+          holdZone: analysis.holdZone,
+          sellZone: analysis.sellZone,
+          strongSellZone: analysis.strongSellZone,
+        },
+        priceData,
+        cacheTimestamp
+      );
+
+      res.json(summary);
+    } catch (error) {
+      console.error(`Summary error for ${symbolUpper}:`, error);
+      res.status(500).json({ error: "Failed to fetch summary" });
     }
   });
 
