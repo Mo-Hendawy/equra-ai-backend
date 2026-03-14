@@ -4,11 +4,35 @@ A roadmap to close the gaps identified in the current AI agent and move from "ab
 
 ---
 
+## Status: What's Done vs Not Done (March 2026)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| 1.1 Chain-of-Thought | ✅ DONE | `reasoningSteps` in stock, portfolio, deploy, compare |
+| 1.2 Few-shot examples | ❌ TODO | — |
+| 1.3 Structured reasoning templates | ⚠️ Partial | CoT prompts enforce structure; no separate template constants |
+| 2.1 Calculator tools | ❌ TODO | — |
+| 2.2 Data lookup tools | ❌ TODO | Defer — pre-fetch sufficient for now |
+| 3.1 Hybrid retrieval | ✅ DONE | Query expansion, RRF, keyword re-rank in `rag/hybrid-retrieval.ts` |
+| 3.2 Re-ranking | ❌ TODO | Cross-encoder or LLM-as-judge — defer |
+| 3.3 Query expansion | ✅ DONE | In `rag/query-expansion.ts`, `hybrid-retrieval.ts` |
+| 4.1 Multi-turn loop | ❌ TODO | Defer |
+| 4.2 Self-correction / validation | ✅ DONE | Zod + retry in `gemini-service.ts`, `analysis-schemas.ts` |
+| 5.1 Schema validation | ✅ DONE | Zod in `schemas/analysis-schemas.ts` |
+| 5.2 Structured output | ⚠️ Partial | Zod handles; native Gemini schema if available |
+| 6.1 Recommendation audit | ❌ TODO | — |
+| 6.2 Backtesting | ❌ TODO | — |
+| 6.3 A/B testing | ❌ TODO | Defer |
+
+See `docs/FOUNDER-REVIEW.md` for full founder review (all three modes).
+
+---
+
 ## 1. Prompt Engineering Upgrades
 
-### 1.1 Chain-of-Thought (CoT) Reasoning
+### 1.1 Chain-of-Thought (CoT) Reasoning ✅ DONE
 
-**Current:** Single-shot prompts with output format requirements.
+**Current:** Implemented. `reasoningSteps` in JSON schema for stock, portfolio, deploy, compare.
 
 **Target:** Explicit reasoning steps before final recommendation.
 
@@ -102,11 +126,11 @@ REASONING TEMPLATE (stock analysis):
 
 ## 3. RAG Improvements
 
-### 3.1 Hybrid Retrieval
+### 3.1 Hybrid Retrieval ✅ DONE
 
-**Current:** Vector-only search.
+**Current:** Implemented. Query expansion + RRF + keyword re-rank in `rag/hybrid-retrieval.ts`. Set `RAG_HYBRID_ENABLED=false` to disable.
 
-**Target:** Combine vector + keyword (BM25) for better recall.
+**Target (original):** Combine vector + keyword (BM25) for better recall.
 
 | Component | Role |
 |-----------|------|
@@ -135,11 +159,11 @@ REASONING TEMPLATE (stock analysis):
 - Re-rank with lightweight cross-encoder or Gemini: "Rate 1–5 how relevant this excerpt is to: [query]."
 - Return top 5–6 after re-ranking.
 
-### 3.3 Query Expansion
+### 3.3 Query Expansion ✅ DONE
 
-**Current:** Fixed query: `"${symbol} financial performance revenue profit..."`.
+**Current:** Implemented in `rag/query-expansion.ts`. Multiple variants per task type (stock, portfolio, compare, deploy).
 
-**Target:** Generate multiple query variants, search each, merge.
+**Target (original):** Generate multiple query variants, search each, merge.
 
 **Implementation:**
 - `expandQuery(symbol, task)`: e.g., ["valuation", "earnings growth", "dividend policy"].
