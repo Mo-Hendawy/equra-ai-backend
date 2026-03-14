@@ -452,6 +452,34 @@ ${ragContext ? "- Use the financial report data provided to compare real company
 Respond ONLY with valid JSON, no markdown.`;
 }
 
+// ─── Behavior Analysis Prompt ───
+
+export function buildBehaviorPrompt(data: any): string {
+  return `You are an expert financial advisor and behavioral coach specializing in the Egyptian Exchange (EGX). Analyze this investor's behavior based on their portfolio, transactions, dividends, and realized gains.
+
+INVESTOR DATA:
+${JSON.stringify(data, null, 2)}
+
+Provide a behavioral analysis that helps them become a better EGX investor. Focus on:
+1. **Patterns**: What investing patterns do you observe? (e.g., "You sell winners too early", "You concentrate in banks", "Strong dividend capture")
+2. **Improvement areas**: 2-4 specific areas where they could improve
+3. **Feedback**: A coaching paragraph (2-4 sentences) that synthesizes patterns and gives actionable advice
+4. **One thing to change**: The single most impactful change they could make right now
+
+Be specific. Reference actual symbols, amounts, and dates from the data. Use a supportive but direct coaching tone.
+
+RESPONSE FORMAT (JSON):
+{
+  "patterns": ["<pattern 1>", "<pattern 2>", "<pattern 3>"],
+  "improvementAreas": ["<area 1>", "<area 2>", "<area 3>"],
+  "feedback": "<2-4 sentence coaching paragraph>",
+  "oneThingToChange": "<single most impactful action>",
+  "reasoningSteps": ["<step 1: data overview>", "<step 2: pattern detection>", "<step 3: improvement areas>", "<step 4: synthesis>"]
+}
+
+Respond ONLY with valid JSON, no markdown.`;
+}
+
 // ─── Stock Analysis Prompt (single stock) ───
 
 export function buildStockAnalysisPrompt(stockData: any, ragContext = ""): string {
@@ -600,7 +628,7 @@ export const TRUSTED_PROVIDERS: ProviderName[] = ["gemini", "groq", "cerebras", 
 
 export async function runAnalysis(
   provider: ProviderName,
-  type: "portfolio" | "deploy" | "compare" | "stock",
+  type: "portfolio" | "deploy" | "compare" | "stock" | "behavior",
   promptData: { data: any; marketPrices?: Record<string, number> }
 ): Promise<{ provider: ProviderName; providerName: string; model: string; result: any; error?: string; durationMs: number }> {
   const config = PROVIDERS[provider];
@@ -651,6 +679,10 @@ export async function runAnalysis(
       const ragContext = symbol ? await getStockAnalysisContext(symbol) : "";
       ragUsed = ragContext.length > 0;
       prompt = buildStockAnalysisPrompt(promptData.data, ragContext);
+      break;
+    }
+    case "behavior": {
+      prompt = buildBehaviorPrompt(promptData.data);
       break;
     }
   }

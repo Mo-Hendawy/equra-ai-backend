@@ -1901,6 +1901,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Per-provider behavior analysis
+  app.post("/api/ai/:provider/behavior-analysis", async (req, res) => {
+    const provider = req.params.provider as ProviderName;
+    if (!PROVIDERS[provider]) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+    if (!isProviderConfigured(provider)) {
+      return res.status(503).json({ error: `${PROVIDERS[provider].name} API key not configured` });
+    }
+    const data = req.body;
+    const hasHoldings = data?.holdings?.length > 0;
+    const hasTransactions = data?.transactions?.length > 0;
+    const hasDividends = data?.dividends?.length > 0;
+    const hasRealizedGains = data?.realizedGains?.length > 0;
+    if (!hasHoldings && !hasTransactions && !hasDividends && !hasRealizedGains) {
+      return res.status(400).json({ error: "Add holdings, trades, dividends, or realized gains to get behavior insights" });
+    }
+    try {
+      const result = await runAnalysis(provider, "behavior", { data });
+      if (result.error) {
+        return res.status(503).json(result);
+      }
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Analysis failed" });
+    }
+  });
+
   // Manus AI Deep Analysis endpoints
   app.post("/api/manus/analyze/:symbol", async (req, res) => {
     const symbol = req.params.symbol.toUpperCase();

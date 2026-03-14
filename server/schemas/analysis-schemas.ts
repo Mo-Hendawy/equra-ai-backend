@@ -169,19 +169,35 @@ export type CompareStocksResultValidated = z.infer<
   typeof compareStocksResultSchema
 >;
 
+// ─── Behavior Analysis ───
+
+export const behaviorAnalysisResultSchema = z.object({
+  patterns: z.array(z.string()),
+  improvementAreas: z.array(z.string()),
+  feedback: z.string().min(1),
+  oneThingToChange: z.string().min(1),
+  reasoningSteps: z.union([z.array(z.string()), z.undefined()]).transform((a) => a ?? []),
+});
+
+export type BehaviorAnalysisResultValidated = z.infer<
+  typeof behaviorAnalysisResultSchema
+>;
+
 // ─── Validation helpers ───
 
 export type SchemaType =
   | "stock"
   | "portfolio"
   | "deploy"
-  | "compare";
+  | "compare"
+  | "behavior";
 
 const schemas: Record<SchemaType, z.ZodTypeAny> = {
   stock: geminiAnalysisSchema,
   portfolio: portfolioAnalysisResultSchema,
   deploy: deployCapitalResultSchema,
   compare: compareStocksResultSchema,
+  behavior: behaviorAnalysisResultSchema,
 };
 
 export interface ValidationResult<T> {
