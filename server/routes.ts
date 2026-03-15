@@ -59,6 +59,21 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
   "Arabia Investments Holding": "AIND",
   "Tanmiya for Real Estate Investment": "TMEI",
   "Obour Land for Food Industries": "OLFI",
+  // Additional symbols from mobile EGX_STOCKS (for summary endpoint)
+  "Arab Pharmaceuticals": "ADCI",
+  "Abu Dhabi Islamic Bank Egypt": "ADIB",
+  "Bank of Alexandria": "ALEX",
+  "QNB Alahli": "QNBA",
+  "Societe Arabe Internationale de Banque": "SAIB",
+  "The United Bank": "UBEE",
+  "U Consumer Finance": "VALU",
+  "EFG Hermes Holding": "HRHO",
+  "SODIC": "SODIC",
+  "Bonyan for Development and Trade": "BONY",
+  "Juhayna Food Industries": "JUFO",
+  "Cairo Poultry": "POUL",
+  "Misr Fertilizers Production Company": "MFPC",
+  "Edita Food Industries": "EFID",
 };
 
 // Reverse mapping for company names
