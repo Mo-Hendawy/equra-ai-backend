@@ -1,6 +1,6 @@
 # RAG Ingestion History
 
-**Last run:** 2026-02-22T05:36:12.600Z
+**Last run:** 2026-03-14T06:52:06.737Z
 **Source:** `C:\Repos\Financial-Reports`
 **LanceDB:** `C:\Repos\equra-ai-backend\server\data\lancedb`
 **Embedding model:** gemini-embedding-001
