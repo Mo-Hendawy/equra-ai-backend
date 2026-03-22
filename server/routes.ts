@@ -74,6 +74,7 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
   "Cairo Poultry": "POUL",
   "Misr Fertilizers Production Company": "MFPC",
   "Edita Food Industries": "EFID",
+  "Credit Agricole Egypt": "CIEB",
 };
 
 // Reverse mapping for company names
@@ -92,6 +93,7 @@ interface EGXFinancialData {
 const EGX_PE_DATA: Record<string, EGXFinancialData & { eps?: number }> = {
   // Banks (user-provided data since not in specialized activities list)
   "COMI": { peRatio: 7.52, dividendYield: 2.032, eps: 16.36 },
+  "CIEB": { peRatio: null, dividendYield: null }, // Credit Agricole Egypt
   
   // From EGX Official Website - PE/DY for Companies Eligible for Specialized Activities
   "REMA": { peRatio: 21.84, dividendYield: 0 },  // The Arab Ceramic CO.- Ceramica Remas
