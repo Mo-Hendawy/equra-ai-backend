@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { getCached, setCache, getStaleCache, getCacheEntry } from "./api-cache";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, compareAnalysisNarrative, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
-import { extractTransactionsFromImage } from "./vision-service";
+import { extractTransactionsFromImage, extractDividendFromImage } from "./vision-service";
 import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
 import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
 import { manusWebhookHandler } from "./manus-webhook-handler";
@@ -1447,6 +1447,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Transaction extraction error:", error);
       res.status(500).json({ error: "Failed to extract transactions from image" });
+    }
+  });
+
+  app.post("/api/extract-dividend", async (req, res) => {
+    const { image } = req.body;
+
+    if (!image) {
+      return res.status(400).json({ error: "image (base64) required" });
+    }
+
+    try {
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      const dividend = await extractDividendFromImage(base64Data);
+      res.json({ dividend });
+    } catch (error) {
+      console.error("Dividend extraction error:", error);
+      res.status(500).json({ error: "Failed to extract dividend from image" });
     }
   });
 

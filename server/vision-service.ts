@@ -16,6 +16,70 @@ export interface ExtractedTransaction {
   status: "Fulfilled" | "Cancelled";
 }
 
+export interface ExtractedDividend {
+  symbol: string;
+  amount: number;
+  exDate: string | null;       // YYYY-MM-DD
+  paymentDate: string | null;  // YYYY-MM-DD
+  status: "announced" | "paid";
+}
+
+export async function extractDividendFromImage(imageBase64: string): Promise<ExtractedDividend> {
+  if (!genAI || !GEMINI_API_KEY) {
+    throw new Error("Gemini API key not configured");
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+
+    const prompt = `You are analyzing a screenshot from an Egyptian stock (EGX) brokerage app showing dividend information.
+
+Extract the following fields:
+- symbol: stock ticker in uppercase (e.g. COMI, EGIE, HRHO)
+- amount: total dividend amount received in EGP as a number
+- exDate: ex-dividend date in YYYY-MM-DD format, or null if not visible
+- paymentDate: payment/distribution date in YYYY-MM-DD format, or null if not visible
+- status: "paid" if the dividend has already been received/distributed, otherwise "announced"
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "symbol": "COMI",
+  "amount": 250.00,
+  "exDate": "2026-01-15",
+  "paymentDate": "2026-01-20",
+  "status": "paid"
+}
+
+Use null for any field that cannot be determined from the image.
+Respond ONLY with valid JSON, no markdown formatting.`;
+
+    const imagePart = {
+      inlineData: {
+        data: imageBase64,
+        mimeType: "image/png",
+      },
+    };
+
+    console.log("Requesting Gemini Vision analysis for dividend...");
+    const result = await model.generateContent([prompt, imagePart]);
+    const text = result.response.text();
+
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith("```json")) cleanedText = cleanedText.substring(7);
+    else if (cleanedText.startsWith("```")) cleanedText = cleanedText.substring(3);
+    if (cleanedText.endsWith("```")) cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+    cleanedText = cleanedText.trim();
+
+    const dividend: ExtractedDividend = JSON.parse(cleanedText);
+    console.log("Extracted dividend:", dividend);
+    return dividend;
+
+  } catch (error) {
+    console.error("Dividend vision analysis error:", error);
+    throw new Error("Failed to extract dividend from image");
+  }
+}
+
 export async function extractTransactionsFromImage(imageBase64: string): Promise<ExtractedTransaction[]> {
   if (!genAI || !GEMINI_API_KEY) {
     throw new Error("Gemini API key not configured");
