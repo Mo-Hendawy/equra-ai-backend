@@ -248,3 +248,25 @@ export function logValidationFailure(
     console.error("Raw response:", JSON.stringify(error.raw, null, 2).slice(0, 500));
   }
 }
+
+// ─── Critic Agent (Phase 2) ───
+
+export const criticFeedbackSchema = z.object({
+  weakness: z.string().min(1),
+  severity: z.enum(["low", "medium", "high"]),
+  counterScenario: z.string().min(1),
+  blockingIssues: z.array(z.string()).min(1), // min(1): empty arrays = sycophantic critic (PITFALL C2)
+  counterRecommendation: z.enum(["Strong Buy", "Buy", "Hold", "Sell", "Strong Sell"]),
+});
+
+export type CriticFeedback = z.infer<typeof criticFeedbackSchema>;
+
+export function applyConfidenceDiscount(
+  confidence: "High" | "Medium" | "Low",
+  severity: "low" | "medium" | "high"
+): "High" | "Medium" | "Low" {
+  if (severity !== "high") return confidence;
+  if (confidence === "High") return "Medium";
+  if (confidence === "Medium") return "Low";
+  return "Low"; // floor
+}
