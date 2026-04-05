@@ -41,8 +41,8 @@ One Express server, agents as TypeScript modules in `server/agents/`, memory in 
 ## Memory Architecture (`server/memory/`)
 
 ### Storage: SQLite (better-sqlite3)
-- `recommendations` table: symbol, date, recommendation, confidence, reasoning, outcome
-- `episodes` table: symbol, context_hash, lesson, created_at
+- `decisions` table: symbol, date, recommendation, confidence, reasoning, inputs_hash, invalidation_reason, outcome_5d, outcome_30d, outcome_90d, scored_5d_at, scored_30d_at, scored_90d_at
+- `episodes` table: symbol, context_hash, lesson, valid_until, macro_regime, created_at
 - `strategy_versions` table: version, prompt_text, created_at, performance_score
 
 ### Three Memory Types

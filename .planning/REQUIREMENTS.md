@@ -8,7 +8,7 @@
 ### Memory System
 
 - [ ] **MEM-01**: Every recommendation stored in SQLite with symbol, date, recommendation, confidence, reasoning, inputs hash
-- [ ] **MEM-02**: Outcome scoring — after N trading days, fetch current price and compute return, write to decisions.outcome
+- [ ] **MEM-02**: Outcome scoring — three windows: 5-day (daily cron 15:30 Cairo), 30-day (weekly Friday 16:00), 90-day (monthly last Friday). Each writes to outcome_5d, outcome_30d, outcome_90d columns
 - [ ] **MEM-03**: Episodic memory — store specific lessons with context, lesson text, validUntil date, macroRegime tag
 - [ ] **MEM-04**: Episodic injection — retrieve top-3 relevant episodes at analysis time and inject into prompt
 - [ ] **MEM-05**: invalidationReason enum on decisions (THESIS_ERROR, MACRO_SHOCK, DATA_STALE, TIMING) — only THESIS_ERROR feeds learning
