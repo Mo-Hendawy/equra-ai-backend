@@ -22,6 +22,11 @@
 
 **Requirements:** MEM-01, MEM-02, MEM-03, MEM-04, MEM-05
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 01-memory-foundation-01-PLAN.md — Install better-sqlite3 + drizzle-orm, create memory module (db + schema + MemoryService), wire episodic injection into Gemini prompt, log decisions fire-and-forget after each analysis, register three outcome scoring cron jobs
+
 **Key deliverables:**
 - Install better-sqlite3 + drizzle-orm
 - Schema: decisions, episodes, strategy_prompts tables
