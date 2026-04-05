@@ -26,6 +26,10 @@ export interface NewDecision {
   fairValue?: number | null;
   priceAtRec?: number | null;
   invalidationReason?: InvalidationReason;
+  // Phase 2: Critic Agent fields
+  criticWeakness?: string | null;
+  criticSeverity?: 'low' | 'medium' | 'high' | null;
+  criticBlocking?: string[] | null;
 }
 
 export interface NewEpisode {
@@ -112,6 +116,9 @@ export class MemoryService {
         fairValue: input.fairValue ?? null,
         priceAtRec: input.priceAtRec ?? null,
         invalidationReason: input.invalidationReason ?? null,
+        criticWeakness: input.criticWeakness ?? null,
+        criticSeverity: input.criticSeverity ?? null,
+        criticBlocking: input.criticBlocking ? JSON.stringify(input.criticBlocking) : null,
       })
       .returning({ id: decisions.id })
       .get();

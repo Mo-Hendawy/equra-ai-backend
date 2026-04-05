@@ -11,6 +11,8 @@ import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type 
 import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusAnalysisRequest, registerManusWebhook } from "./manus-service";
 import { manusWebhookHandler } from "./manus-webhook-handler";
 import { deriveStockSummary } from "./utils/summary";
+import { criticAgent } from "./agents/critic-agent.js";
+import { applyConfidenceDiscount, type CriticFeedback } from "./schemas/analysis-schemas.js";
 
 const EODHD_API_TOKEN = process.env.EODHD_API_TOKEN || "";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -914,6 +916,17 @@ async function calculateAnalysis(
   console.log(`Attempting Gemini AI analysis for ${symbol}...${refresh ? ' (refresh requested)' : ''}`);
   const geminiAnalysis = await analyzeStockWithGemini(stockDataForAI, refresh, episodicContext);
 
+  // CRIT-01/02/03/04/05: Adversarial critique — runs after Gemini, before response
+  let criticFeedback: CriticFeedback | null = null;
+  if (geminiAnalysis) {
+    criticFeedback = await criticAgent.critique(geminiAnalysis, stockDataForAI);
+  }
+
+  // CRIT-06: Adjust confidence based on critic severity
+  const adjustedConfidence = (geminiAnalysis && criticFeedback)
+    ? applyConfidenceDiscount(geminiAnalysis.confidence, criticFeedback.severity)
+    : geminiAnalysis?.confidence ?? undefined;
+
   // MEM-01: Log decision to memory AFTER analysis, fire-and-forget (don't block response)
   if (geminiAnalysis) {
     setImmediate(() => {
@@ -930,11 +943,14 @@ async function calculateAnalysis(
       memoryService.saveDecision({
         symbol,
         recommendation: geminiAnalysis.recommendation,
-        confidence: geminiAnalysis.confidence,
-        reasoning: geminiAnalysis.reasoning.slice(0, 2000), // cap at 2000 chars
+        confidence: adjustedConfidence ?? geminiAnalysis.confidence,
+        reasoning: geminiAnalysis.reasoning.slice(0, 2000),
         inputsHash,
         fairValue: geminiAnalysis.fairValueEstimate ?? null,
         priceAtRec: stockDataForAI.currentPrice,
+        criticWeakness: criticFeedback?.weakness ?? null,
+        criticSeverity: criticFeedback?.severity ?? null,
+        criticBlocking: criticFeedback?.blockingIssues ?? null,
       }).catch(e => console.error('Memory saveDecision failed:', e));
     });
   }
@@ -972,13 +988,14 @@ async function calculateAnalysis(
       priceSource: price.source,
       financialsSource: financials.source,
       geminiReasoning: geminiAnalysis.reasoning,
-      geminiConfidence: geminiAnalysis.confidence,
+      geminiConfidence: adjustedConfidence,   // CRIT-06: confidence discount applied when critic runs
       geminiRiskLevel: geminiAnalysis.riskLevel,
       geminiKeyPoints: geminiAnalysis.keyPoints,
       analysisMethod: "Gemini AI",
       valuationStatus: geminiAnalysis.valuationStatus,
       simpleExplanation: geminiAnalysis.simpleExplanation,
       riskSignals: geminiAnalysis.riskSignals,
+      criticFeedback: criticFeedback ?? undefined,
     };
   }
 
