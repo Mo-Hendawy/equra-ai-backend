@@ -47,6 +47,11 @@ Plans:
 
 **Requirements:** CRIT-01, CRIT-02, CRIT-03, CRIT-04, CRIT-05, CRIT-06
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 02-critic-agent-01-PLAN.md — CriticFeedback Zod schema + applyConfidenceDiscount, CriticAgent class using Groq Llama 4 Scout at temp 0.7 with 10s fail-open timeout, wire into calculateAnalysis after Gemini, add criticFeedback to response and critic fields to saveDecision
+
 **Key deliverables:**
 - CriticAgent module in server/agents/critic-agent.ts
 - Uses Groq Llama 4 Scout at temperature 0.7
