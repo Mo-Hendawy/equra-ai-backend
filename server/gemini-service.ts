@@ -133,7 +133,11 @@ export interface GeminiAnalysis {
   riskSignals: string[];
 }
 
-export async function analyzeStockWithGemini(stockData: StockDataForAI, skipCache: boolean = false): Promise<GeminiAnalysis | null> {
+export async function analyzeStockWithGemini(
+  stockData: StockDataForAI,
+  skipCache: boolean = false,
+  episodicContext?: string   // MEM-04: injected by caller, optional
+): Promise<GeminiAnalysis | null> {
   try {
     // Check cache first (24 hour cache) unless refresh requested
     if (!skipCache) {
@@ -151,7 +155,11 @@ export async function analyzeStockWithGemini(stockData: StockDataForAI, skipCach
       return null;
     }
 
-    const prompt = `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.
+    const episodicBlock = episodicContext
+      ? `\n\nEPISODIC MEMORY (lessons from past analyses of similar setups):\n${episodicContext}\n`
+      : '';
+
+    const prompt = `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.${episodicBlock}
 
 STOCK DATA:
 ${JSON.stringify(stockData, null, 2)}

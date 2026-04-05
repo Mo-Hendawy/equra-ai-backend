@@ -11,6 +11,7 @@ console.log("Loading .env from:", path.resolve(process.cwd(), ".env"));
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerScoringJobs } from "./jobs/scoring-jobs.js";
 import * as fs from "fs";
 
 const app = express();
@@ -243,6 +244,9 @@ function setupErrorHandler(app: express.Application) {
   configureExpoAndLanding(app);
 
   const server = await registerRoutes(app);
+
+  // MEM-02: Register outcome scoring cron jobs (5d daily, 30d weekly, 90d monthly)
+  registerScoringJobs();
 
   setupErrorHandler(app);
 

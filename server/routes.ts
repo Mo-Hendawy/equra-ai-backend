@@ -2,7 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "node:crypto";
 import { getCached, setCache, getStaleCache, getCacheEntry } from "./api-cache";
+import { memoryService } from "./memory/memory-service.js";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, compareAnalysisNarrative, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
 import { extractTransactionsFromImage, extractDividendFromImage } from "./vision-service";
 import { runAnalysis, getAvailableProviders, PROVIDERS, TRUSTED_PROVIDERS, type ProviderName, isProviderConfigured } from "./ai-providers";
@@ -891,9 +893,51 @@ async function calculateAnalysis(
     ...(sentiment && sentiment.length > 0 && { sentiment }),
   };
 
+  // MEM-04: Fetch relevant episodic context BEFORE calling Gemini
+  // macroRegime is null in Phase 1 (classifier added Phase 3/4)
+  let episodicContext: string | undefined;
+  try {
+    const relevantEpisodes = await memoryService.getRelevantEpisodes(symbol, null, 3);
+    if (relevantEpisodes.length > 0) {
+      episodicContext = relevantEpisodes
+        .map((ep, i) => {
+          const dateStr = ep.createdAt ? ep.createdAt.toISOString().split('T')[0] : 'unknown';
+          return `${i + 1}. [${dateStr}] ${ep.symbol} — ${ep.context}: ${ep.lesson}`;
+        })
+        .join('\n');
+    }
+  } catch (e) {
+    console.warn('Memory episodic fetch failed (non-fatal):', e);
+  }
+
   // Try Gemini AI analysis first
   console.log(`Attempting Gemini AI analysis for ${symbol}...${refresh ? ' (refresh requested)' : ''}`);
-  const geminiAnalysis = await analyzeStockWithGemini(stockDataForAI, refresh);
+  const geminiAnalysis = await analyzeStockWithGemini(stockDataForAI, refresh, episodicContext);
+
+  // MEM-01: Log decision to memory AFTER analysis, fire-and-forget (don't block response)
+  if (geminiAnalysis) {
+    setImmediate(() => {
+      const inputsHash = createHash('sha256')
+        .update(JSON.stringify({
+          symbol: stockDataForAI.symbol,
+          price: stockDataForAI.currentPrice,
+          eps: stockDataForAI.eps,
+          peRatio: stockDataForAI.peRatio,
+        }))
+        .digest('hex')
+        .slice(0, 16);
+
+      memoryService.saveDecision({
+        symbol,
+        recommendation: geminiAnalysis.recommendation,
+        confidence: geminiAnalysis.confidence,
+        reasoning: geminiAnalysis.reasoning.slice(0, 2000), // cap at 2000 chars
+        inputsHash,
+        fairValue: geminiAnalysis.fairValueEstimate ?? null,
+        priceAtRec: stockDataForAI.currentPrice,
+      }).catch(e => console.error('Memory saveDecision failed:', e));
+    });
+  }
 
   if (geminiAnalysis) {
     console.log(`Using Gemini AI analysis for ${symbol}: ${geminiAnalysis.recommendation}`);
