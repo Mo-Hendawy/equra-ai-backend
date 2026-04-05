@@ -73,14 +73,12 @@ Plans:
 
 **Requirements:** LEARN-01, LEARN-02, LEARN-03, LEARN-04, LEARN-05
 
-**Key deliverables:**
-- Install node-cron
-- Daily backtest job: query decisions >5 trading days old, fetch current price, score outcome
-- Strategy prompt versioning in strategy_prompts table
-- Weekly Meta-Agent job: review last 30 decisions + 10 random historical, write new strategy version
-- Balanced sampling (macro regime diversity)
-- Prompt diff endpoint (compare two strategy versions)
-- Analysis prompts read latest strategy version from DB
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Real backtest scoring: fetchCurrentPrice from EODHD, compute % return, write outcome_5d/30d/90d, auto-generate episode for bad outcomes (>5% wrong direction, THESIS_ERROR only)
+- [ ] 03-02-PLAN.md — Strategy versioning: seed v1 into strategy_prompts on startup, inject active strategy into analyzeStockWithGemini, add saveStrategyPrompt/getStrategyByVersion/getStrategyDiff/seedInitialStrategy to MemoryService
+- [ ] 03-03-PLAN.md — Meta-Agent: MetaAgent class using Gemini Flash, balanced sampling (30 recent + 10 random historical), THESIS_ERROR filter, weekly cron Sunday 17:00 Cairo, /api/strategy-diff endpoint
 
 **Critical pitfall watch:** C5 (data hazards — schedule after market close), M3 (survivorship bias — keep delisted), M4 (overfitting — balanced sample)
 
