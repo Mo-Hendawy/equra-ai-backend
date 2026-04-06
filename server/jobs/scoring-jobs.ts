@@ -88,4 +88,9 @@ export function registerScoringJobs(): void {
   }, { timezone: 'Africa/Cairo', name: 'score-90d' });
 
   console.log('[scoring-jobs] Registered: score-5d (daily 15:30 Cairo), score-30d (Fri 16:00 Cairo), score-90d (last Fri 16:00 Cairo)');
+
+  // LEARN-02: seed strategy v1 on first run (idempotent)
+  memoryService.seedInitialStrategy().catch(e =>
+    console.error('[scoring-jobs] seedInitialStrategy failed (non-fatal):', e)
+  );
 }

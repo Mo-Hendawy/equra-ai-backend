@@ -4,6 +4,7 @@ import {
   validateAnalysis,
   logValidationFailure,
 } from "./schemas/analysis-schemas";
+import { memoryService } from "./memory/memory-service.js";
 import * as dotenv from "dotenv";
 import * as path from "path";
 
@@ -155,11 +156,22 @@ export async function analyzeStockWithGemini(
       return null;
     }
 
+    // LEARN-02: inject active strategy version from DB (fail-open)
+    let strategyBlock = '';
+    try {
+      const activeStrategy = await memoryService.getLatestStrategyPrompt();
+      if (activeStrategy?.promptText) {
+        strategyBlock = `\n\nACTIVE STRATEGY (version ${activeStrategy.version} — follow these guidelines):\n${activeStrategy.promptText}\n`;
+      }
+    } catch (e) {
+      console.warn('[gemini-service] Failed to load active strategy — proceeding without it:', e);
+    }
+
     const episodicBlock = episodicContext
       ? `\n\nEPISODIC MEMORY (lessons from past analyses of similar setups):\n${episodicContext}\n`
       : '';
 
-    const prompt = `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.${episodicBlock}
+    const prompt = `You are an expert stock analyst specializing in the Egyptian Exchange (EGX). Provide a comprehensive investment analysis report.${strategyBlock}${episodicBlock}
 
 STOCK DATA:
 ${JSON.stringify(stockData, null, 2)}

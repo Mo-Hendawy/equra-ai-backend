@@ -258,6 +258,81 @@ export class MemoryService {
     return result ?? null;
   }
 
+  // LEARN-02: Save a new strategy prompt version (deactivates previous)
+  async saveStrategyPrompt(promptText: string): Promise<number> {
+    this.db.update(strategyPrompts)
+      .set({ isActive: false })
+      .where(eq(strategyPrompts.isActive, true))
+      .run();
+    const all = this.db.select({ version: strategyPrompts.version }).from(strategyPrompts).all();
+    const nextVersion = all.length > 0 ? Math.max(...all.map(r => r.version)) + 1 : 1;
+    const result = this.db
+      .insert(strategyPrompts)
+      .values({ version: nextVersion, promptText, isActive: true })
+      .returning({ id: strategyPrompts.id })
+      .get();
+    return result.id;
+  }
+
+  // LEARN-02: Get strategy by version number
+  async getStrategyByVersion(version: number): Promise<typeof strategyPrompts.$inferSelect | null> {
+    const result = this.db
+      .select()
+      .from(strategyPrompts)
+      .where(eq(strategyPrompts.version, version))
+      .get();
+    return result ?? null;
+  }
+
+  // LEARN-05: Line-by-line diff between two strategy texts
+  getStrategyDiff(textA: string, textB: string): string {
+    const linesA = textA.split('\n');
+    const linesB = textB.split('\n');
+    const result: string[] = [];
+    const maxLen = Math.max(linesA.length, linesB.length);
+    for (let i = 0; i < maxLen; i++) {
+      const a = linesA[i];
+      const b = linesB[i];
+      if (a === undefined) { result.push(`+ ${b}`); }
+      else if (b === undefined) { result.push(`- ${a}`); }
+      else if (a !== b) { result.push(`- ${a}`); result.push(`+ ${b}`); }
+    }
+    return result.length > 0 ? result.join('\n') : '(no changes)';
+  }
+
+  // LEARN-02: Seed initial strategy v1 (idempotent)
+  async seedInitialStrategy(): Promise<void> {
+    const existing = this.db.select({ id: strategyPrompts.id }).from(strategyPrompts).get();
+    if (existing) return;
+
+    const v1 = `# Equra AI — Stock Analysis Strategy v1
+
+## Core Principles
+1. Prioritize EGX-specific valuation metrics: P/E relative to sector peers, not global benchmarks.
+2. Always weight CBE interest rate direction when analyzing bank and rate-sensitive stocks.
+3. Treat thin-volume moves (< 50% of 30-day average) as noise — do not extrapolate direction.
+4. FRA filing lag: if earnings data is >60 days old, discount confidence by 10% and flag staleness.
+5. Prefer conservative fair value estimates — Egyptian retail investors cannot absorb large drawdowns.
+
+## Recommendation Thresholds
+- Strong Buy: price > 25% below conservative fair value AND fundamentals intact.
+- Buy: price 10-25% below conservative fair value.
+- Hold: price within ±10% of fair value.
+- Sell: price 10-20% above fair value OR thesis broken.
+- Strong Sell: price > 20% above fair value OR fundamental deterioration.
+
+## Red Flags (auto-downgrade confidence to Low)
+- No earnings data available
+- Stock suspended or halted more than 3 times in last 90 days
+- FX exposure > 50% of revenue without hedging disclosure
+
+## Learning Notes
+(populated by Meta-Agent after weekly review — none yet for v1)`;
+
+    await this.saveStrategyPrompt(v1);
+    console.log('[MemoryService] Seeded initial strategy v1');
+  }
+
   // LEARN-01: Auto-generate episode from bad outcome
   async autoEpisodeFromOutcome(
     decision: typeof decisions.$inferSelect,
