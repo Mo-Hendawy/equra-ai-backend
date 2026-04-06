@@ -2183,6 +2183,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manus Webhook Endpoint
   app.post("/api/manus/webhook", manusWebhookHandler);
 
+  // LEARN-05: Strategy diff endpoint — compare two strategy versions
+  app.get('/api/strategy-diff', async (req, res) => {
+    try {
+      const v1Num = parseInt(req.query.v1 as string, 10);
+      const v2Num = parseInt(req.query.v2 as string, 10);
+
+      if (isNaN(v1Num) || isNaN(v2Num)) {
+        return res.status(400).json({ error: 'v1 and v2 must be integers. Example: /api/strategy-diff?v1=1&v2=2' });
+      }
+
+      const [stratA, stratB] = await Promise.all([
+        memoryService.getStrategyByVersion(v1Num),
+        memoryService.getStrategyByVersion(v2Num),
+      ]);
+
+      if (!stratA) return res.status(404).json({ error: `Strategy v${v1Num} not found` });
+      if (!stratB) return res.status(404).json({ error: `Strategy v${v2Num} not found` });
+
+      const diff = memoryService.getStrategyDiff(stratA.promptText, stratB.promptText);
+
+      return res.json({
+        v1: { version: stratA.version, createdAt: stratA.createdAt, isActive: stratA.isActive },
+        v2: { version: stratB.version, createdAt: stratB.createdAt, isActive: stratB.isActive },
+        diff,
+      });
+    } catch (e: any) {
+      console.error('[routes] /api/strategy-diff error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
   // Register Manus webhook on startup
   registerManusWebhook();
 

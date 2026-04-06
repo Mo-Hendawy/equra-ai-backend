@@ -1,6 +1,7 @@
 // server/jobs/scoring-jobs.ts
 import cron from 'node-cron';
 import { memoryService } from '../memory/memory-service.js';
+import { metaAgent } from '../agents/meta-agent.js';
 
 // MEM-02: "last Friday of month" guard for 90-day window
 function isLastFridayOfMonth(date: Date): boolean {
@@ -87,7 +88,13 @@ export function registerScoringJobs(): void {
     }
   }, { timezone: 'Africa/Cairo', name: 'score-90d' });
 
-  console.log('[scoring-jobs] Registered: score-5d (daily 15:30 Cairo), score-30d (Fri 16:00 Cairo), score-90d (last Fri 16:00 Cairo)');
+  // LEARN-03: Weekly Meta-Agent — Sunday 17:00 Cairo (after market close, after 5d scoring)
+  cron.schedule('0 17 * * 0', async () => {
+    console.log('[scoring-jobs] Weekly Meta-Agent review triggered');
+    await metaAgent.reviewAndEvolve();
+  }, { timezone: 'Africa/Cairo', name: 'meta-agent-weekly' });
+
+  console.log('[scoring-jobs] Registered: score-5d, score-30d, score-90d, meta-agent-weekly (Sun 17:00 Cairo)');
 
   // LEARN-02: seed strategy v1 on first run (idempotent)
   memoryService.seedInitialStrategy().catch(e =>

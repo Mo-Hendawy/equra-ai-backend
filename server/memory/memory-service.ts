@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as path from 'path';
-import { eq, isNull } from 'drizzle-orm';
+import { eq, isNull, not } from 'drizzle-orm';
 import * as lancedb from '@lancedb/lancedb';
 import * as schema from './schema.js';
 import { decisions, episodes, strategyPrompts } from './schema.js';
@@ -247,6 +247,15 @@ export class MemoryService {
     } else {
       return this.db.select().from(decisions).where(isNull(decisions.outcome90d)).all();
     }
+  }
+
+  // LEARN-03: Get all scored decisions for Meta-Agent sampling
+  async getScoredDecisionsForMeta(): Promise<typeof decisions.$inferSelect[]> {
+    return this.db
+      .select()
+      .from(decisions)
+      .where(not(isNull(decisions.outcome5d)))
+      .all();
   }
 
   async getLatestStrategyPrompt(): Promise<typeof strategyPrompts.$inferSelect | null> {
