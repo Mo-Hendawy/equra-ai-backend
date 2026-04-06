@@ -12,6 +12,8 @@ import { createManusAnalysis, getManusAnalysisResult, getManusTaskStatus, ManusA
 import { manusWebhookHandler } from "./manus-webhook-handler";
 import { deriveStockSummary } from "./utils/summary";
 import { criticAgent } from "./agents/critic-agent.js";
+import { orchestrator } from "./agents/orchestrator.js";
+import type { DataAgentInput, PipelineResult } from "./agents/types.js";
 import { applyConfidenceDiscount, type CriticFeedback } from "./schemas/analysis-schemas.js";
 
 const EODHD_API_TOKEN = process.env.EODHD_API_TOKEN || "";
@@ -82,7 +84,7 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
 };
 
 // Reverse mapping for company names
-const EGX_COMPANY_SYMBOL_MAP_REVERSE: Record<string, string> = Object.entries(EGX_COMPANY_SYMBOL_MAP).reduce((acc, [name, symbol]) => {
+export const EGX_COMPANY_SYMBOL_MAP_REVERSE: Record<string, string> = Object.entries(EGX_COMPANY_SYMBOL_MAP).reduce((acc, [name, symbol]) => {
   acc[symbol] = name;
   return acc;
 }, {} as Record<string, string>);
@@ -223,6 +225,11 @@ interface StockAnalysis {
   geminiKeyPoints?: string[];
   analysisMethod?: string;
   error?: string;
+  // Phase 2 additive fields (Critic Agent)
+  valuationStatus?: string;
+  simpleExplanation?: string[];
+  riskSignals?: string[];
+  criticFeedback?: import('./schemas/analysis-schemas.js').CriticFeedback;
 }
 
 async function fetchEODHDPrice(symbol: string): Promise<StockPrice | null> {
@@ -459,7 +466,7 @@ interface HistoricalPriceData {
   close: number;
 }
 
-async function fetchHistoricalPrices(symbol: string, days: number = 252): Promise<number[]> {
+export async function fetchHistoricalPrices(symbol: string, days: number = 252): Promise<number[]> {
   try {
     // Check cache first
     const cached = await getCached<number[]>(`historical_${symbol}_${days}`);
@@ -827,12 +834,109 @@ async function fetchStockFinancials(symbol: string): Promise<StockFinancials & {
   return result;
 }
 
+// ARCH-07/08: Orchestrated pipeline adapter — maps PipelineResult to StockAnalysis
+// TODO: Remove this flag and old path after 2 weeks validation (pitfall M5)
+async function runOrchestratedPipeline(
+  symbol: string,
+  price: StockPrice,
+  financials: StockFinancials & { dividendYield?: number | null },
+  refresh: boolean
+): Promise<StockAnalysis> {
+  const input: DataAgentInput = { symbol, price, financials, refresh };
+  const result: PipelineResult = await orchestrator.run(input);
+
+  const { dataOutput, analysisOutput, decisionOutput } = result;
+  const cf = dataOutput.computedFields;
+
+  if (analysisOutput) {
+    return {
+      symbol,
+      currentPrice: price.price,
+      eps: cf.eps,
+      peRatio: cf.peRatio,
+      bookValue: cf.bookValue,
+      priceToBook: cf.priceToBook,
+      fiftyTwoWeekLow: null,
+      fiftyTwoWeekHigh: null,
+      fiftyDayAvg: null,
+      twoHundredDayAvg: null,
+      dividendYield: cf.dividendYield,
+      fairValuePE: null,
+      fairValueGraham: null,
+      fairValueAvg: analysisOutput.fairValueEstimate,
+      strongBuyZone: analysisOutput.strongBuyZone,
+      buyZone: analysisOutput.buyZone,
+      holdZone: analysisOutput.holdZone,
+      sellZone: analysisOutput.sellZone,
+      strongSellZone: analysisOutput.strongSellZone,
+      firstTarget: analysisOutput.firstTarget,
+      secondTarget: analysisOutput.secondTarget,
+      thirdTarget: analysisOutput.thirdTarget,
+      recommendation: decisionOutput.finalRecommendation,
+      sharpeRatio: cf.sharpeRatio,
+      sortinoRatio: cf.sortinoRatio,
+      dataAvailable: price.price !== null || cf.eps !== null || cf.peRatio !== null,
+      priceSource: price.source,
+      financialsSource: financials.source,
+      geminiReasoning: analysisOutput.reasoning,
+      geminiConfidence: decisionOutput.adjustedConfidence,
+      geminiRiskLevel: analysisOutput.riskLevel,
+      geminiKeyPoints: analysisOutput.keyPoints,
+      analysisMethod: 'Gemini AI (Orchestrated)',
+      valuationStatus: analysisOutput.valuationStatus,
+      simpleExplanation: analysisOutput.simpleExplanation,
+      riskSignals: analysisOutput.riskSignals,
+      criticFeedback: decisionOutput.criticFeedback ?? undefined,
+    };
+  }
+
+  // Fallback — Gemini unavailable
+  const fallbackAnalysis = createFallbackAnalysis(symbol, price.price || 0, cf.eps, cf.peRatio, cf.bookValue, cf.dividendYield, cf.sharpeRatio, cf.sortinoRatio);
+  return {
+    symbol,
+    currentPrice: price.price,
+    eps: cf.eps,
+    peRatio: cf.peRatio,
+    bookValue: cf.bookValue,
+    priceToBook: cf.priceToBook,
+    fiftyTwoWeekLow: null,
+    fiftyTwoWeekHigh: null,
+    fiftyDayAvg: null,
+    twoHundredDayAvg: null,
+    dividendYield: cf.dividendYield,
+    fairValuePE: null,
+    fairValueGraham: null,
+    fairValueAvg: fallbackAnalysis.fairValueEstimate,
+    strongBuyZone: fallbackAnalysis.strongBuyZone,
+    buyZone: fallbackAnalysis.buyZone,
+    holdZone: fallbackAnalysis.holdZone,
+    sellZone: fallbackAnalysis.sellZone,
+    strongSellZone: fallbackAnalysis.strongSellZone,
+    firstTarget: fallbackAnalysis.firstTarget,
+    secondTarget: fallbackAnalysis.secondTarget,
+    thirdTarget: fallbackAnalysis.thirdTarget,
+    recommendation: fallbackAnalysis.recommendation,
+    sharpeRatio: cf.sharpeRatio,
+    sortinoRatio: cf.sortinoRatio,
+    dataAvailable: price.price !== null || cf.eps !== null || cf.peRatio !== null,
+    priceSource: price.source,
+    financialsSource: financials.source,
+    analysisMethod: 'Formula (Orchestrated Fallback)',
+  };
+}
+
 async function calculateAnalysis(
   symbol: string,
   price: StockPrice,
   financials: StockFinancials & { dividendYield?: number | null },
   refresh: boolean = false
 ): Promise<StockAnalysis> {
+  // ARCH-08: Feature flag — USE_ORCHESTRATOR=true routes through new pipeline
+  // TODO: Remove this flag and old path after 2 weeks validation (pitfall M5)
+  if (process.env.USE_ORCHESTRATOR === 'true') {
+    return runOrchestratedPipeline(symbol, price, financials, refresh);
+  }
+
   const currentPrice = price.price;
   // Derive EPS from P/E and price if EPS is missing but P/E is available
   const eps = financials.eps || (financials.peRatio && currentPrice && financials.peRatio > 0 ? currentPrice / financials.peRatio : null);
