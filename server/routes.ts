@@ -2287,6 +2287,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manus Webhook Endpoint
   app.post("/api/manus/webhook", manusWebhookHandler);
 
+  // OBS-03: Health check endpoint
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      uptime: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      orchestrator: process.env.USE_ORCHESTRATOR === 'true',
+    });
+  });
+
+  // OBS-03: Metrics endpoint — decisions today, critic overrides, avg confidence, backtest accuracy
+  app.get('/api/metrics', async (_req, res) => {
+    try {
+      const metrics = await memoryService.getMetrics();
+      return res.json(metrics);
+    } catch (e: any) {
+      console.error('[routes] /api/metrics error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
   // LEARN-05: Strategy diff endpoint — compare two strategy versions
   app.get('/api/strategy-diff', async (req, res) => {
     try {

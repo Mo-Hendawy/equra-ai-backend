@@ -12,6 +12,11 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerScoringJobs } from "./jobs/scoring-jobs.js";
+import { startPriceMonitor } from "./monitoring/price-monitor.js";
+import { startCbeMonitor } from "./monitoring/cbe-monitor.js";
+import { monitoringBus, type AlertEvent } from "./monitoring/monitoring-bus.js";
+import { orchestrator } from "./agents/orchestrator.js";
+import { logger } from "./logger.js";
 import * as fs from "fs";
 
 const app = express();
@@ -247,6 +252,31 @@ function setupErrorHandler(app: express.Application) {
 
   // MEM-02: Register outcome scoring cron jobs (5d daily, 30d weekly, 90d monthly)
   registerScoringJobs();
+
+  // MON-01/02: Start monitoring
+  startPriceMonitor();
+  startCbeMonitor();
+
+  // Handle monitoring alerts — trigger re-analysis via orchestrator
+  monitoringBus.on('alert', async (event: AlertEvent) => {
+    logger.info({ symbol: event.symbol, type: event.type, priority: event.priority }, `Alert received: ${event.detail}`);
+    if (process.env.USE_ORCHESTRATOR === 'true') {
+      try {
+        // Trigger lightweight re-analysis — orchestrator handles the full pipeline
+        logger.info({ symbol: event.symbol }, 'Triggering autonomous re-analysis');
+        // Note: DataAgentInput requires price/financials — the orchestrator's DataAgent fetches them
+        // For autonomous triggers, we pass minimal input and let DataAgent do the work
+        await orchestrator.run({
+          symbol: event.symbol,
+          price: { price: null, volume: null, change: null, changePercent: null, previousClose: null, open: null, high: null, low: null },
+          financials: { eps: null, peRatio: null, bookValue: null },
+          refresh: true,
+        });
+      } catch (e) {
+        logger.error({ symbol: event.symbol, err: e }, 'Autonomous re-analysis failed');
+      }
+    }
+  });
 
   setupErrorHandler(app);
 

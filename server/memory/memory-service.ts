@@ -267,6 +267,67 @@ export class MemoryService {
     return result ?? null;
   }
 
+  // OBS-03: Metrics for /api/metrics endpoint
+  async getMetrics(): Promise<{
+    decisionsToday: number;
+    totalDecisions: number;
+    criticOverrides: number;
+    avgConfidence: string;
+    accuracy5d: string;
+    accuracy30d: string;
+    activeStrategyVersion: number | null;
+  }> {
+    const allDecisions = this.db.select().from(decisions).all();
+    const today = new Date().toISOString().slice(0, 10);
+    const decisionsToday = allDecisions.filter(d => {
+      const created = d.createdAt instanceof Date ? d.createdAt.toISOString().slice(0, 10) : String(d.createdAt).slice(0, 10);
+      return created === today;
+    }).length;
+
+    // Critic overrides: decisions where critic severity was 'high' (confidence was discounted)
+    const criticOverrides = allDecisions.filter(d => d.criticSeverity === 'high').length;
+
+    // Confidence distribution
+    const confMap: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+    const confValues = allDecisions.map(d => confMap[d.confidence] || 2);
+    const avgConf = confValues.length > 0 ? confValues.reduce((a, b) => a + b, 0) / confValues.length : 0;
+    const avgConfLabel = avgConf >= 2.5 ? 'High' : avgConf >= 1.5 ? 'Medium' : 'Low';
+
+    // 5-day accuracy: % of scored decisions where direction matched
+    const scored5d = allDecisions.filter(d => d.outcome5d !== null);
+    const correct5d = scored5d.filter(d => {
+      const isBuy = d.recommendation === 'Strong Buy' || d.recommendation === 'Buy';
+      const isSell = d.recommendation === 'Sell' || d.recommendation === 'Strong Sell';
+      if (isBuy) return (d.outcome5d ?? 0) > 0;
+      if (isSell) return (d.outcome5d ?? 0) < 0;
+      return true; // Hold is always "correct" for direction
+    });
+    const acc5d = scored5d.length > 0 ? `${Math.round((correct5d.length / scored5d.length) * 100)}%` : 'N/A';
+
+    // 30-day accuracy
+    const scored30d = allDecisions.filter(d => d.outcome30d !== null);
+    const correct30d = scored30d.filter(d => {
+      const isBuy = d.recommendation === 'Strong Buy' || d.recommendation === 'Buy';
+      const isSell = d.recommendation === 'Sell' || d.recommendation === 'Strong Sell';
+      if (isBuy) return (d.outcome30d ?? 0) > 0;
+      if (isSell) return (d.outcome30d ?? 0) < 0;
+      return true;
+    });
+    const acc30d = scored30d.length > 0 ? `${Math.round((correct30d.length / scored30d.length) * 100)}%` : 'N/A';
+
+    const activeStrategy = await this.getLatestStrategyPrompt();
+
+    return {
+      decisionsToday,
+      totalDecisions: allDecisions.length,
+      criticOverrides,
+      avgConfidence: avgConfLabel,
+      accuracy5d: acc5d,
+      accuracy30d: acc30d,
+      activeStrategyVersion: activeStrategy?.version ?? null,
+    };
+  }
+
   // LEARN-02: Save a new strategy prompt version (deactivates previous)
   async saveStrategyPrompt(promptText: string): Promise<number> {
     this.db.update(strategyPrompts)
