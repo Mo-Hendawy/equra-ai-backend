@@ -92,6 +92,11 @@ Plans:
 
 **Requirements:** ARCH-01 through ARCH-08
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 04-01-PLAN.md — Agent<TInput,TOutput> interface + DataAgent + AnalysisAgent + formalize CriticAgent; then DecisionAgent + Orchestrator + USE_ORCHESTRATOR feature flag wiring in routes.ts with response adapter
+
 **Key deliverables:**
 - Agent<TInput, TOutput> interface
 - DataAgent (wraps price cascade + RAG + sentiment)
