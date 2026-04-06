@@ -258,6 +258,40 @@ export class MemoryService {
     return result ?? null;
   }
 
+  // LEARN-01: Auto-generate episode from bad outcome
+  async autoEpisodeFromOutcome(
+    decision: typeof decisions.$inferSelect,
+    window: '5d' | '30d' | '90d',
+    outcomePercent: number
+  ): Promise<void> {
+    try {
+      // Only fire for wrong-direction outcomes with significant magnitude
+      const isBuyRec = decision.recommendation === 'Strong Buy' || decision.recommendation === 'Buy';
+      const isSellRec = decision.recommendation === 'Sell' || decision.recommendation === 'Strong Sell';
+      const isWrongDirection = (isBuyRec && outcomePercent < -5) || (isSellRec && outcomePercent > 5);
+
+      // Hold recommendations are never auto-episoded (direction is ambiguous)
+      if (!isWrongDirection) return;
+
+      // Pitfall C1: skip non-THESIS_ERROR invalidated decisions — macro shocks don't teach strategy lessons
+      if (decision.invalidationReason && decision.invalidationReason !== 'THESIS_ERROR') return;
+
+      const lesson = `${window} outcome: ${outcomePercent.toFixed(1)}% — recommendation was ${decision.recommendation} but price moved opposite. Review thesis assumptions.`;
+      const context = `Symbol: ${decision.symbol}. Rec at ${decision.priceAtRec ?? 'unknown'} EGP on ${decision.createdAt instanceof Date ? decision.createdAt.toISOString().slice(0, 10) : String(decision.createdAt).slice(0, 10)}.`;
+
+      await this.saveEpisode({
+        symbol: decision.symbol,
+        lesson,
+        context,
+        decisionId: decision.id,
+      });
+      console.log(`[memory] Auto-episode created for decision ${decision.id} (${decision.symbol} ${window}: ${outcomePercent.toFixed(1)}%)`);
+    } catch (e) {
+      console.error(`[memory] autoEpisodeFromOutcome error for decision ${decision.id}:`, e);
+      // Never throw — episode creation is non-fatal
+    }
+  }
+
   // Private: Embed episode to LanceDB episodic_memory table
   private async embedEpisodeToLanceDB(
     episodeId: number,
