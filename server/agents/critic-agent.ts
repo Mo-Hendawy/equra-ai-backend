@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { criticFeedbackSchema, type CriticFeedback } from "../schemas/analysis-schemas.js";
 import type { GeminiAnalysis, StockDataForAI } from "../gemini-service.js";
+import type { Agent, CriticAgentInput, CriticAgentOutput } from './types.js';
 
 const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const CRITIC_TIMEOUT_MS = 10_000;  // CRIT-05: fail-open if exceeded
@@ -64,7 +65,12 @@ severity guide:
 IMPORTANT: blockingIssues must have at least 1 item. An empty array means you found nothing — that is not acceptable.`;
 }
 
-export class CriticAgent {
+export class CriticAgent implements Agent<CriticAgentInput, CriticAgentOutput> {
+  async run(input: CriticAgentInput, signal?: AbortSignal): Promise<CriticAgentOutput> {
+    if (signal?.aborted) return null;
+    return this.critique(input.analysis, input.stockData);
+  }
+
   private getGroqClient(): OpenAI | null {
     const key = process.env.GROQ_API_KEY;
     return key
@@ -111,7 +117,7 @@ export class CriticAgent {
       const validated = criticFeedbackSchema.safeParse(parsed);
 
       if (!validated.success) {
-        console.warn("CriticAgent: Zod validation failed — skipping critique", validated.error.errors);
+        console.warn("CriticAgent: Zod validation failed — skipping critique", validated.error.issues);
         return null;
       }
 
