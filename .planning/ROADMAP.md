@@ -119,19 +119,12 @@ Plans:
 
 **Requirements:** MON-01 through MON-04, AUTO-01 through AUTO-04, OBS-01 through OBS-03
 
-**Key deliverables:**
-- Install pino + pino-pretty
-- EventEmitter-based monitoring bus
-- Price alert monitor (15-min polling, >5% + volume threshold)
-- CBE rate decision detector
-- Tiered priority system
-- 24-hour cooldown per stock per alert type
-- Scheduled daily watchlist analysis (node-cron, after 15:30 Cairo)
-- Price timestamp freshness assertion
-- Confidence-based escalation (< 50% → flag for review)
-- Autonomous episode writing after outcome scoring
-- /health and /metrics endpoints
-- Structured pino logging across all agents
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Install pino, EventEmitter MonitoringBus with 24h cooldown + tiered priority, PriceMonitor (15-min EODHD poll, >5% move on volume >50% 30d avg), CbeMonitor (2h news poll, keyword detection), AUTO-01 watchlist cron at 15:45 Cairo
+- [ ] 05-02-PLAN.md — Shared pino logger (server/logger.ts), replace console.log in all 5 agent files, OBS-02 per-agent structured log events, AUTO-02 price freshness assertion in Orchestrator, AUTO-03 low-confidence flagging
+- [ ] 05-03-PLAN.md — getMetrics() on MemoryService (decisionsToday, criticOverrides, avgConfidence, backtestAccuracy), /health and /api/metrics endpoints in routes.ts
 
 **Critical pitfall watch:** C5 (data hazards — post-market only), M2 (circuit breaker noise — volume threshold), L3 (alert fatigue — cooldown)
 
