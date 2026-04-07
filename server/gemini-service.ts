@@ -18,7 +18,8 @@ console.log(`Gemini API Key loaded: ${GEMINI_API_KEY ? 'YES (length: ' + GEMINI_
 
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 
-const GEMINI_MODEL = "gemini-2.5-pro";
+const GEMINI_MODEL_PRIMARY = "gemini-2.5-pro";
+const GEMINI_MODEL_FALLBACK = "gemini-2.5-flash";
 
 async function callGeminiWithRetry(
   prompt: string,
@@ -26,26 +27,34 @@ async function callGeminiWithRetry(
 ): Promise<string> {
   const { temperature = 0.7, maxOutputTokens = 4096 } = opts;
   const maxRetries = 5;
+  // Try primary model first, fall back to flash after 2 quota errors
+  let quotaErrors = 0;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const useModel = quotaErrors >= 2 ? GEMINI_MODEL_FALLBACK : GEMINI_MODEL_PRIMARY;
     try {
       const model = genAI!.getGenerativeModel({
-        model: GEMINI_MODEL,
+        model: useModel,
         generationConfig: { temperature, maxOutputTokens },
       });
       const result = await model.generateContent(prompt);
+      if (useModel === GEMINI_MODEL_FALLBACK) {
+        console.log(`[gemini-service] Used fallback model ${GEMINI_MODEL_FALLBACK} (primary quota exceeded)`);
+      }
       return result.response.text();
     } catch (error: any) {
       const status = error?.status;
-      const isRetryable = status === 429 || status === 503;
-      console.warn(`Gemini attempt ${attempt + 1}/${maxRetries} failed: ${status || error.message}`);
+      const isQuota = status === 429;
+      const isRetryable = isQuota || status === 503;
+      console.warn(`Gemini attempt ${attempt + 1}/${maxRetries} (${useModel}) failed: ${status || error.message}`);
+      if (isQuota) quotaErrors++;
       if (isRetryable && attempt < maxRetries - 1) {
-        const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s, 16s, 32s
-        console.log(`Retrying in ${delay / 1000}s...`);
+        const delay = quotaErrors >= 2 ? 1000 : Math.pow(2, attempt + 1) * 1000;
+        console.log(`Retrying in ${delay / 1000}s with ${quotaErrors >= 2 ? 'fallback' : 'primary'} model...`);
         await new Promise((r) => setTimeout(r, delay));
         continue;
       }
-      throw error; // non-retryable or all retries exhausted — throw to caller
+      throw error;
     }
   }
   throw new Error("Gemini failed after all retries");
