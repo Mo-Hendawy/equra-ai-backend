@@ -97,7 +97,7 @@ export class CriticAgent implements Agent<CriticAgentInput, CriticAgentOutput> {
         try {
           const model = genAI.getGenerativeModel({
             model: useModel,
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 65536 },
           });
           const result = await model.generateContent(prompt);
           clearTimeout(timeoutId);
