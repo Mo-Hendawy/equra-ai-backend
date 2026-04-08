@@ -3,6 +3,7 @@ import { sqliteTable, integer, text, real } from 'drizzle-orm/sqlite-core';
 export const decisions = sqliteTable('decisions', {
   id:                    integer('id').primaryKey({ autoIncrement: true }),
   symbol:                text('symbol').notNull(),
+  decisionType:          text('decision_type').notNull().default('stock').$type<'stock' | 'portfolio' | 'deploy'>(),
   createdAt:             integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   recommendation:        text('recommendation').notNull(),
   confidence:            text('confidence').notNull(),

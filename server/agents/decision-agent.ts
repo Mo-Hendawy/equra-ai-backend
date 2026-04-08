@@ -32,6 +32,7 @@ export class DecisionAgent implements Agent<DecisionAgentInput, DecisionAgentOut
     setImmediate(() => {
       memoryService.saveDecision({
         symbol: input.symbol,
+        decisionType: 'stock',
         recommendation: finalRecommendation,
         confidence: adjustedConfidence,
         reasoning: input.analysis.reasoning.slice(0, 2000),

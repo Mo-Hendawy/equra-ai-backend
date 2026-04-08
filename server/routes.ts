@@ -1046,6 +1046,7 @@ async function calculateAnalysis(
 
       memoryService.saveDecision({
         symbol,
+        decisionType: 'stock',
         recommendation: geminiAnalysis.recommendation,
         confidence: adjustedConfidence ?? geminiAnalysis.confidence,
         reasoning: geminiAnalysis.reasoning.slice(0, 2000),
@@ -2013,6 +2014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .digest('hex').slice(0, 16);
           memoryService.saveDecision({
             symbol,
+            decisionType: 'stock',
             recommendation: result.result.recommendation,
             confidence: result.result.confidence || 'Medium',
             reasoning: (result.result.reasoning || result.result.geminiReasoning || '').slice(0, 2000),
@@ -2133,6 +2135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .digest('hex').slice(0, 16);
           memoryService.saveDecision({
             symbol: symbols.join(','),
+            decisionType: 'portfolio',
             recommendation: result.result.recommendation || result.result.health || 'N/A',
             confidence: result.result.confidence || 'Medium',
             reasoning: (result.result.reasoning || result.result.summary || '').slice(0, 2000),
@@ -2209,6 +2212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .digest('hex').slice(0, 16);
           memoryService.saveDecision({
             symbol: portfolioSymbols.join(','),
+            decisionType: 'deploy',
             recommendation: result.result.strategy || 'N/A',
             confidence: result.result.confidence || 'Medium',
             reasoning: (result.result.reasoning || '').slice(0, 2000),

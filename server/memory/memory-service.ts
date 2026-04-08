@@ -17,8 +17,11 @@ const VALID_INVALIDATION_REASONS: InvalidationReason[] = [
   'THESIS_ERROR', 'MACRO_SHOCK', 'DATA_STALE', 'TIMING'
 ];
 
+export type DecisionType = 'stock' | 'portfolio' | 'deploy';
+
 export interface NewDecision {
   symbol: string;
+  decisionType: DecisionType;
   recommendation: string;
   confidence: string;
   reasoning: string;
@@ -56,6 +59,7 @@ export class MemoryService {
       CREATE TABLE IF NOT EXISTS decisions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         symbol TEXT NOT NULL,
+        decision_type TEXT NOT NULL DEFAULT 'stock',
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         recommendation TEXT NOT NULL,
         confidence TEXT NOT NULL,
@@ -151,6 +155,7 @@ export class MemoryService {
       .insert(decisions)
       .values({
         symbol: input.symbol,
+        decisionType: input.decisionType,
         createdAt: new Date(),
         recommendation: input.recommendation,
         confidence: input.confidence,
@@ -283,22 +288,25 @@ export class MemoryService {
   }
 
   async getDecisionsPendingOutcome(window: '5d' | '30d' | '90d'): Promise<typeof decisions.$inferSelect[]> {
+    // Only score stock decisions — portfolio/deploy don't have price targets
+    const stockFilter = eq(decisions.decisionType, 'stock');
     if (window === '5d') {
-      return this.db.select().from(decisions).where(isNull(decisions.outcome5d)).all();
+      return this.db.select().from(decisions).where(isNull(decisions.outcome5d)).all().filter(d => d.decisionType === 'stock');
     } else if (window === '30d') {
-      return this.db.select().from(decisions).where(isNull(decisions.outcome30d)).all();
+      return this.db.select().from(decisions).where(isNull(decisions.outcome30d)).all().filter(d => d.decisionType === 'stock');
     } else {
-      return this.db.select().from(decisions).where(isNull(decisions.outcome90d)).all();
+      return this.db.select().from(decisions).where(isNull(decisions.outcome90d)).all().filter(d => d.decisionType === 'stock');
     }
   }
 
-  // LEARN-03: Get all scored decisions for Meta-Agent sampling
+  // LEARN-03: Get all scored STOCK decisions for Meta-Agent sampling
   async getScoredDecisionsForMeta(): Promise<typeof decisions.$inferSelect[]> {
     return this.db
       .select()
       .from(decisions)
       .where(not(isNull(decisions.outcome5d)))
-      .all();
+      .all()
+      .filter(d => d.decisionType === 'stock');
   }
 
   async getLatestStrategyPrompt(): Promise<typeof strategyPrompts.$inferSelect | null> {
