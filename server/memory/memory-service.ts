@@ -143,6 +143,12 @@ export class MemoryService {
         );
       `);
     }
+    // Migration: add decision_type column to existing DBs
+    try {
+      sqlite.exec(`ALTER TABLE decisions ADD COLUMN decision_type TEXT NOT NULL DEFAULT 'stock'`);
+    } catch {
+      // Column already exists — ignore
+    }
     this.db = drizzle({ client: sqlite, schema });
   }
 
@@ -289,7 +295,6 @@ export class MemoryService {
 
   async getDecisionsPendingOutcome(window: '5d' | '30d' | '90d'): Promise<typeof decisions.$inferSelect[]> {
     // Only score stock decisions — portfolio/deploy don't have price targets
-    const stockFilter = eq(decisions.decisionType, 'stock');
     if (window === '5d') {
       return this.db.select().from(decisions).where(isNull(decisions.outcome5d)).all().filter(d => d.decisionType === 'stock');
     } else if (window === '30d') {
