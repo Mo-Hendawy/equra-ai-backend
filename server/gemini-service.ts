@@ -25,7 +25,7 @@ async function callGeminiWithRetry(
   prompt: string,
   opts: { temperature?: number; maxOutputTokens?: number } = {}
 ): Promise<string> {
-  const { temperature = 0.7, maxOutputTokens = 4096 } = opts;
+  const { temperature = 0.7, maxOutputTokens = 8192 } = opts;
   const maxRetries = 5;
   // Try primary model first, fall back to flash after 2 quota errors
   let quotaErrors = 0;
