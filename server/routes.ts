@@ -1967,10 +1967,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(sentiment && sentiment.length > 0 && { sentiment }),
       };
 
+      // MEM-04: Fetch episodic context before analysis
+      let episodicContext: string | undefined;
+      try {
+        const relevantEpisodes = await memoryService.getRelevantEpisodes(symbol, null, 3);
+        if (relevantEpisodes.length > 0) {
+          episodicContext = relevantEpisodes
+            .map((ep, i) => `${i + 1}. [${ep.symbol}] ${ep.context}: ${ep.lesson}`)
+            .join('\n');
+          (stockDataForAI as any).episodicContext = episodicContext;
+        }
+      } catch (e) {
+        console.warn('Episodic fetch failed (non-fatal):', e);
+      }
+
       const result = await runAnalysis(provider, "stock", { data: stockDataForAI });
       if (result.error) {
         return res.status(503).json(result);
       }
+
+      // Critic: run after analysis if result has recommendation
+      if (result.result?.recommendation) {
+        try {
+          const criticResult = await criticAgent.critique(
+            result.result as any,
+            stockDataForAI as any
+          );
+          if (criticResult) {
+            result.result.criticFeedback = criticResult;
+            // Apply confidence discount
+            if (criticResult.severity === 'high' && result.result.confidence) {
+              result.result.confidence = applyConfidenceDiscount(result.result.confidence, criticResult.severity);
+            }
+          }
+        } catch (e) {
+          console.warn('Critic failed (non-fatal):', e);
+        }
+      }
+
+      // MEM-01: Log decision fire-and-forget
+      if (result.result?.recommendation) {
+        setImmediate(() => {
+          const inputsHash = createHash('sha256')
+            .update(JSON.stringify({ symbol, price: priceData.price, eps, peRatio: financials.peRatio }))
+            .digest('hex').slice(0, 16);
+          memoryService.saveDecision({
+            symbol,
+            recommendation: result.result.recommendation,
+            confidence: result.result.confidence || 'Medium',
+            reasoning: (result.result.reasoning || result.result.geminiReasoning || '').slice(0, 2000),
+            inputsHash,
+            fairValue: result.result.fairValueEstimate ?? result.result.fairValueAvg ?? null,
+            priceAtRec: priceData.price,
+            criticWeakness: result.result.criticFeedback?.weakness ?? null,
+            criticSeverity: result.result.criticFeedback?.severity ?? null,
+            criticBlocking: result.result.criticFeedback?.blockingIssues ?? null,
+          }).catch(e => console.error('saveDecision failed:', e));
+        });
+      }
+
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Stock analysis failed" });
@@ -2049,10 +2104,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbols = portfolioData.holdings.map((h: any) => h.symbol);
       const sentiment = await fetchSentimentForPortfolio(symbols);
       if (sentiment && sentiment.length > 0) portfolioData.sentiment = sentiment;
+      // MEM-04: Fetch episodic context for portfolio symbols
+      try {
+        const allEpisodes: Array<{ symbol: string; context: string; lesson: string }> = [];
+        for (const sym of symbols.slice(0, 5)) {
+          const eps = await memoryService.getRelevantEpisodes(sym, null, 2);
+          allEpisodes.push(...eps);
+        }
+        if (allEpisodes.length > 0) {
+          portfolioData.episodicContext = allEpisodes
+            .map((ep, i) => `${i + 1}. [${ep.symbol}] ${ep.context}: ${ep.lesson}`)
+            .join('\n');
+        }
+      } catch (e) {
+        console.warn('Portfolio episodic fetch failed (non-fatal):', e);
+      }
+
       const result = await runAnalysis(provider, "portfolio", { data: portfolioData });
       if (result.error) {
         return res.status(503).json(result);
       }
+
+      // MEM-01: Log portfolio decision
+      if (result.result) {
+        setImmediate(() => {
+          const inputsHash = createHash('sha256')
+            .update(JSON.stringify({ symbols, type: 'portfolio' }))
+            .digest('hex').slice(0, 16);
+          memoryService.saveDecision({
+            symbol: symbols.join(','),
+            recommendation: result.result.recommendation || result.result.health || 'N/A',
+            confidence: result.result.confidence || 'Medium',
+            reasoning: (result.result.reasoning || result.result.summary || '').slice(0, 2000),
+            inputsHash,
+            priceAtRec: null,
+          }).catch(e => console.error('saveDecision (portfolio) failed:', e));
+        });
+      }
+
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Analysis failed" });
@@ -2091,10 +2180,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      // MEM-04: Fetch episodic context for deploy symbols
+      try {
+        const deployEpisodes: Array<{ symbol: string; context: string; lesson: string }> = [];
+        for (const sym of portfolioSymbols.slice(0, 5)) {
+          const eps = await memoryService.getRelevantEpisodes(sym, null, 2);
+          deployEpisodes.push(...eps);
+        }
+        if (deployEpisodes.length > 0) {
+          data.episodicContext = deployEpisodes
+            .map((ep, i) => `${i + 1}. [${ep.symbol}] ${ep.context}: ${ep.lesson}`)
+            .join('\n');
+        }
+      } catch (e) {
+        console.warn('Deploy episodic fetch failed (non-fatal):', e);
+      }
+
       const result = await runAnalysis(provider, "deploy", { data, marketPrices });
       if (result.error) {
         return res.status(503).json(result);
       }
+
+      // MEM-01: Log deploy decision
+      if (result.result) {
+        setImmediate(() => {
+          const inputsHash = createHash('sha256')
+            .update(JSON.stringify({ symbols: portfolioSymbols, amount: data.amountToDeployEGP, type: 'deploy' }))
+            .digest('hex').slice(0, 16);
+          memoryService.saveDecision({
+            symbol: portfolioSymbols.join(','),
+            recommendation: result.result.strategy || 'N/A',
+            confidence: result.result.confidence || 'Medium',
+            reasoning: (result.result.reasoning || '').slice(0, 2000),
+            inputsHash,
+            priceAtRec: null,
+          }).catch(e => console.error('saveDecision (deploy) failed:', e));
+        });
+      }
+
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Analysis failed" });
