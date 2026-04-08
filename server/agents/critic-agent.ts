@@ -1,9 +1,10 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { criticFeedbackSchema, type CriticFeedback } from "../schemas/analysis-schemas.js";
 import type { GeminiAnalysis, StockDataForAI } from "../gemini-service.js";
 import type { Agent, CriticAgentInput, CriticAgentOutput } from './types.js';
 
-const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const CRITIC_MODEL_PRIMARY = "gemini-2.5-pro";
+const CRITIC_MODEL_FALLBACK = "gemini-2.5-flash";
 const CRITIC_TIMEOUT_MS = 10_000;  // CRIT-05: fail-open if exceeded
 
 // Forced counter-position mapping (CRIT-03)
@@ -71,64 +72,69 @@ export class CriticAgent implements Agent<CriticAgentInput, CriticAgentOutput> {
     return this.critique(input.analysis, input.stockData);
   }
 
-  private getGroqClient(): OpenAI | null {
-    const key = process.env.GROQ_API_KEY;
-    return key
-      ? new OpenAI({ apiKey: key, baseURL: "https://api.groq.com/openai/v1" })
-      : null;
-  }
-
   async critique(
     analysis: GeminiAnalysis,
     stockData: StockDataForAI
   ): Promise<CriticFeedback | null> {
-    const client = this.getGroqClient();
-    if (!client) {
-      console.warn("CriticAgent: GROQ_API_KEY not configured — skipping critique (CRIT-05 fail-open)");
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("CriticAgent: GEMINI_API_KEY not configured — skipping critique (CRIT-05 fail-open)");
       return null;
     }
 
+    const genAI = new GoogleGenerativeAI(apiKey);
     const prompt = buildCriticPrompt(analysis, stockData);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CRITIC_TIMEOUT_MS);
 
+    // Same fallback strategy as analysis: try Pro first, fall back to Flash on 429
+    let quotaErrors = 0;
+    const maxRetries = 3;
+
     try {
-      const response = await client.chat.completions.create(
-        {
-          model: GROQ_MODEL,
-          messages: [
-            {
-              role: "system",
-              content: "You are an adversarial financial analyst. You argue the OPPOSITE position to any recommendation you receive. Respond only with valid JSON.",
-            },
-            { role: "user", content: prompt },
-          ],
-          temperature: 0.7,      // CRIT-02: divergent from Gemini's 0.2
-          max_tokens: 1024,
-        },
-        { signal: controller.signal }
-      );
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const useModel = quotaErrors >= 1 ? CRITIC_MODEL_FALLBACK : CRITIC_MODEL_PRIMARY;
+        try {
+          const model = genAI.getGenerativeModel({
+            model: useModel,
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          });
+          const result = await model.generateContent(prompt);
+          clearTimeout(timeoutId);
 
-      clearTimeout(timeoutId);
+          const raw = result.response.text();
+          const cleaned = cleanJson(raw);
+          const parsed = JSON.parse(cleaned);
+          const validated = criticFeedbackSchema.safeParse(parsed);
 
-      const raw = response.choices[0]?.message?.content ?? "";
-      const cleaned = cleanJson(raw);
-      const parsed = JSON.parse(cleaned);
-      const validated = criticFeedbackSchema.safeParse(parsed);
+          if (!validated.success) {
+            console.warn(`CriticAgent: Zod validation failed (${useModel}) — skipping critique`, validated.error.issues);
+            return null;
+          }
 
-      if (!validated.success) {
-        console.warn("CriticAgent: Zod validation failed — skipping critique", validated.error.issues);
-        return null;
+          if (useModel === CRITIC_MODEL_FALLBACK) {
+            console.log(`CriticAgent: used fallback model ${CRITIC_MODEL_FALLBACK}`);
+          }
+          console.log(`CriticAgent: critique complete — severity=${validated.data.severity}, counter=${validated.data.counterRecommendation}`);
+          return validated.data;
+        } catch (err: any) {
+          if (err?.status === 429) {
+            quotaErrors++;
+            console.warn(`CriticAgent: ${useModel} quota exceeded (attempt ${attempt + 1}/${maxRetries}) — ${quotaErrors >= 1 ? 'falling back to Flash' : 'retrying'}`);
+            continue;
+          }
+          throw err;
+        }
       }
-
-      console.log(`CriticAgent: critique complete — severity=${validated.data.severity}, counter=${validated.data.counterRecommendation}`);
-      return validated.data;
+      clearTimeout(timeoutId);
+      console.warn("CriticAgent: all retries exhausted — skipping critique (CRIT-05 fail-open)");
+      return null;
     } catch (err: any) {
       clearTimeout(timeoutId);
       if (err?.name === "AbortError" || err?.message?.includes("abort")) {
-        console.warn("CriticAgent: Groq timeout after 10s — shipping without critique (CRIT-05 fail-open)");
+        console.warn("CriticAgent: timeout after 10s — shipping without critique (CRIT-05 fail-open)");
       } else {
-        console.warn("CriticAgent: Groq call failed — shipping without critique (CRIT-05 fail-open)", err?.message);
+        console.warn("CriticAgent: call failed — shipping without critique (CRIT-05 fail-open)", err?.message);
       }
       return null;
     }
