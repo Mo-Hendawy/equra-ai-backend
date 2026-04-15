@@ -125,6 +125,26 @@ export class MemoryService {
         event_ids TEXT NOT NULL,        -- JSON array of {id, title, start_date, type:'new'|'updated', symbol}
         recipients_count INTEGER NOT NULL DEFAULT 0
       );
+      -- Thndr email-import feature (inbound webhook pipeline)
+      CREATE TABLE IF NOT EXISTS thndr_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        received_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        invoice_date TEXT NOT NULL,                    -- "DD/MM/YYYY" from the invoice
+        transaction_no TEXT NOT NULL UNIQUE,           -- e.g. "N000238603014" — used for idempotency
+        security_name TEXT NOT NULL,                   -- raw name as printed on the invoice
+        isin TEXT,                                     -- e.g. "EGS512O1C012"
+        resolved_symbol TEXT,                          -- EGX ticker after resolution, null if unresolved
+        resolution_source TEXT,                        -- 'isin' | 'name-match' | 'gemini' | null
+        transaction_type TEXT NOT NULL,                -- 'buy' | 'sell'
+        quantity REAL NOT NULL,
+        price REAL NOT NULL,
+        value REAL NOT NULL,
+        fees REAL NOT NULL DEFAULT 0,
+        grand_total REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',        -- 'pending' | 'imported' | 'dismissed'
+        imported_at INTEGER,
+        raw_pdf_path TEXT                              -- optional: keep a copy for audit
+      );
     `);
     // Run inline DDL for :memory: test instances; production uses drizzle-kit migrate
     if (DB_PATH === ':memory:') {

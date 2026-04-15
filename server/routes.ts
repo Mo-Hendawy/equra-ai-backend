@@ -2416,6 +2416,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manus Webhook Endpoint
   app.post("/api/manus/webhook", manusWebhookHandler);
 
+  // THNDR: Inbound webhook — Postmark (or Mailgun-compatible) posts parsed email + PDF attachments here.
+  // Authenticated via the shared secret `THNDR_INBOUND_SECRET` (set in Postmark's webhook URL as ?token=...
+  // OR in the X-Inbound-Token header). If the secret is not configured, we deny everything.
+  app.post('/api/thndr/inbound', async (req, res) => {
+    try {
+      const expected = process.env.THNDR_INBOUND_SECRET;
+      if (!expected) return res.status(503).json({ error: 'THNDR_INBOUND_SECRET not configured' });
+      const provided = (req.query.token as string) || (req.header('x-inbound-token') ?? '');
+      if (provided !== expected) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { handleInbound } = await import('./thndr/inbound-handler.js');
+      const result = await handleInbound(req.body ?? {}, EGX_COMPANY_SYMBOL_MAP);
+      return res.json(result);
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/inbound error:', e);
+      return res.status(500).json({ error: e.message ?? 'Internal error' });
+    }
+  });
+
+  // THNDR: List pending (not-yet-imported) transactions for the mobile review screen.
+  app.get('/api/thndr/pending', async (_req, res) => {
+    try {
+      const { thndrService } = await import('./thndr/thndr-service.js');
+      const items = thndrService.listPending(50);
+      return res.json({ pending: items });
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/pending error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // THNDR: Mark a pending transaction as imported (mobile calls this after writing to local AsyncStorage).
+  app.post('/api/thndr/pending/:id/import', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: 'id must be numeric' });
+      const { thndrService } = await import('./thndr/thndr-service.js');
+      const ok = thndrService.setStatus(id, 'imported');
+      return ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/pending/:id/import error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // THNDR: Dismiss a pending transaction (user doesn't want to import it).
+  app.delete('/api/thndr/pending/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) return res.status(400).json({ error: 'id must be numeric' });
+      const { thndrService } = await import('./thndr/thndr-service.js');
+      const ok = thndrService.setStatus(id, 'dismissed');
+      return ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/pending/:id error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
   // CALENDAR: Register a device push token (anonymous — anyone with the app gets calendar alerts)
   app.post('/api/push-tokens', async (req, res) => {
     try {
