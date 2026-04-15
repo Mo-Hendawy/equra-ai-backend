@@ -81,6 +81,7 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
   "Misr Fertilizers Production Company": "MFPC",
   "Edita Food Industries": "EFID",
   "Credit Agricole Egypt": "CIEB",
+  "Ibn Sina Pharma": "ISPH",
 };
 
 // Reverse mapping for company names
@@ -100,6 +101,7 @@ const EGX_PE_DATA: Record<string, EGXFinancialData & { eps?: number }> = {
   // Banks (user-provided data since not in specialized activities list)
   "COMI": { peRatio: 7.52, dividendYield: 2.032, eps: 16.36 },
   "CIEB": { peRatio: null, dividendYield: null }, // Credit Agricole Egypt
+  "ISPH": { peRatio: null, dividendYield: null }, // Ibn Sina Pharma
   
   // From EGX Official Website - PE/DY for Companies Eligible for Specialized Activities
   "REMA": { peRatio: 21.84, dividendYield: 0 },  // The Arab Ceramic CO.- Ceramica Remas
@@ -2413,6 +2415,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Manus Webhook Endpoint
   app.post("/api/manus/webhook", manusWebhookHandler);
+
+  // CALENDAR: Register a device push token (anonymous — anyone with the app gets calendar alerts)
+  app.post('/api/push-tokens', async (req, res) => {
+    try {
+      const { calendarService } = await import('./calendar/calendar-service.js');
+      const { token, platform } = req.body ?? {};
+      if (typeof token !== 'string' || token.length < 10) {
+        return res.status(400).json({ error: 'token is required' });
+      }
+      const plat = (platform === 'ios' || platform === 'android' || platform === 'web') ? platform : 'unknown';
+      calendarService.upsertPushToken(token, plat);
+      return res.json({ ok: true });
+    } catch (e: any) {
+      console.error('[routes] /api/push-tokens error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // CALENDAR: List recent dividend-calendar notifications (history feed)
+  app.get('/api/notifications', async (req, res) => {
+    try {
+      const { calendarService } = await import('./calendar/calendar-service.js');
+      const limit = Math.min(parseInt((req.query.limit as string) || '10', 10) || 10, 50);
+      const items = calendarService.listNotifications(limit);
+      return res.json({ notifications: items });
+    } catch (e: any) {
+      console.error('[routes] /api/notifications error:', e);
+      return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // CALENDAR: Manual trigger for testing (run a poll on demand)
+  app.post('/api/calendar/poll', async (_req, res) => {
+    try {
+      const { runCalendarPoll } = await import('./calendar/calendar-poller.js');
+      const result = await runCalendarPoll();
+      return res.json(result);
+    } catch (e: any) {
+      console.error('[routes] /api/calendar/poll error:', e);
+      return res.status(500).json({ error: e.message ?? 'Internal error' });
+    }
+  });
 
   // OBS-03: Health check endpoint
   app.get('/api/health', (_req, res) => {

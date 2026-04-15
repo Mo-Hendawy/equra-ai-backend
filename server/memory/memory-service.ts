@@ -97,6 +97,34 @@ export class MemoryService {
         performance_score REAL,
         is_active INTEGER NOT NULL DEFAULT 0
       );
+      -- Dividend Calendar feature (claps.therumble.app polling + push notifications)
+      CREATE TABLE IF NOT EXISTS calendar_events (
+        event_id INTEGER PRIMARY KEY,
+        title TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        modified_utc TEXT NOT NULL,
+        tag_symbol TEXT,
+        url TEXT,
+        snapshot_hash TEXT NOT NULL,
+        last_seen_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE TABLE IF NOT EXISTS push_tokens (
+        token TEXT PRIMARY KEY,
+        platform TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        last_seen_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE TABLE IF NOT EXISTS calendar_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sent_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        new_count INTEGER NOT NULL DEFAULT 0,
+        updated_count INTEGER NOT NULL DEFAULT 0,
+        event_ids TEXT NOT NULL,        -- JSON array of {id, title, start_date, type:'new'|'updated', symbol}
+        recipients_count INTEGER NOT NULL DEFAULT 0
+      );
     `);
     // Run inline DDL for :memory: test instances; production uses drizzle-kit migrate
     if (DB_PATH === ':memory:') {

@@ -12,6 +12,7 @@ import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerScoringJobs } from "./jobs/scoring-jobs.js";
+import { registerCalendarJobs } from "./jobs/calendar-jobs.js";
 import { startPriceMonitor } from "./monitoring/price-monitor.js";
 import { startCbeMonitor } from "./monitoring/cbe-monitor.js";
 import { monitoringBus, type AlertEvent } from "./monitoring/monitoring-bus.js";
@@ -252,6 +253,9 @@ function setupErrorHandler(app: express.Application) {
 
   // MEM-02: Register outcome scoring cron jobs (5d daily, 30d weekly, 90d monthly)
   registerScoringJobs();
+
+  // CALENDAR: Register dividend-calendar polling cron (06:00 + 18:00 Africa/Cairo)
+  registerCalendarJobs();
 
   // MON-01/02: Start monitoring
   startPriceMonitor();
