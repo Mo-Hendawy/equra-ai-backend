@@ -13,6 +13,7 @@
 | 3 | Self-Learning | Backtest scoring + Meta-Agent strategy evolution | 3-4 days | Phases 1, 2 |
 | 4 | Multi-Agent Architecture | Refactor into Orchestrator + 4 specialized agents | 3-4 days | Phases 1-3 |
 | 5 | Monitoring & Autonomy | Event-driven triggers + scheduled analysis + observability | 3-4 days | Phase 4 |
+| 6 | Dividend Calendar Notifications | Poll claps.therumble.app twice daily, smart-batched Expo push, in-app history | 1 day | None |
 
 ---
 
@@ -129,6 +130,39 @@ Plans:
 **Critical pitfall watch:** C5 (data hazards — post-market only), M2 (circuit breaker noise — volume threshold), L3 (alert fatigue — cooldown)
 
 **Success criteria:** Server starts → cron jobs registered. Price moves 6% on good volume → re-analysis triggered automatically. /metrics shows today's decisions, critic overrides, backtest accuracy.
+
+---
+
+## Phase 6: Dividend Calendar Notifications
+
+**Goal:** Users receive push notifications whenever dividend-calendar entries are added or changed on claps.therumble.app. Tapping the notification opens the app's Dividend Calendar view on a new Notifications tab with history of past batches.
+
+**Requirements:** CAL-01 through CAL-06
+
+**Plans:** 1 plan
+
+Plans:
+- [x] 06-01-PLAN.md — Poller (fetch + diff + smart batch), Expo push dispatcher, cron at 06:00 + 18:00 Africa/Cairo, mobile registration + Notifications tab + tap handler
+
+**Key deliverables:**
+- Backend: `calendar_events`, `push_tokens`, `calendar_notifications` SQLite tables
+- Backend: `calendar-poller` fetches The Events Calendar REST API, diffs against stored snapshots, builds smart-batched notification, persists history
+- Backend: `push-dispatcher` via `expo-server-sdk`, prunes invalid tokens
+- Backend: `/api/push-tokens`, `/api/notifications`, `/api/calendar/poll` endpoints
+- Mobile: `expo-notifications` + `expo-device` installed; Android channel `dividend-calendar`; app.json plugin + EAS scaffolding
+- Mobile: `registerForPushNotifications` helper with AsyncStorage idempotency
+- Mobile: `DividendCalendarScreen` hosts segmented Calendar / Notifications view
+- Mobile: `DividendNotificationsView` renders last 10 batches with NEW/UPD badges + pull-to-refresh
+- Mobile: `App.tsx` tap handler deep-links to the Notifications tab (foreground + cold-start)
+
+**Smart batch rules:**
+- 1 change → `"New: <title> — <date>"` or `"Updated: …"`
+- 2–4 changes → `"<n> new [+ <m> updated] dividend events: SYM, SYM, SYM"`
+- 5+ changes → `"<n> new + <m> updated dividend events posted"`
+
+**Critical pitfall watch:** source HTML brittle (mitigated — using WordPress Events API), EAS projectId required in production builds (scaffolded placeholder, `eas init` required before prod), notification spam on busy days (mitigated by smart batching).
+
+**Success criteria:** 06:00 Cairo poll detects new/changed events → push lands on device with correct batched copy → tap opens Dividend Calendar on the Notifications tab → history shows the batch with NEW/UPD event rows. `/api/calendar/poll` returns identical idempotent results when invoked twice in a row.
 
 ---
 
