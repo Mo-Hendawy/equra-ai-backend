@@ -81,7 +81,7 @@ const EGX_COMPANY_SYMBOL_MAP: Record<string, string> = {
   "Misr Fertilizers Production Company": "MFPC",
   "Edita Food Industries": "EFID",
   "Credit Agricole Egypt": "CIEB",
-  "Ibn Sina Pharma": "ISPH",
+  "Ibnsina Pharma": "ISPH",
 };
 
 // Reverse mapping for company names
@@ -101,7 +101,7 @@ const EGX_PE_DATA: Record<string, EGXFinancialData & { eps?: number }> = {
   // Banks (user-provided data since not in specialized activities list)
   "COMI": { peRatio: 7.52, dividendYield: 2.032, eps: 16.36 },
   "CIEB": { peRatio: null, dividendYield: null }, // Credit Agricole Egypt
-  "ISPH": { peRatio: null, dividendYield: null }, // Ibn Sina Pharma
+  "ISPH": { peRatio: null, dividendYield: null }, // Ibnsina Pharma
   
   // From EGX Official Website - PE/DY for Companies Eligible for Specialized Activities
   "REMA": { peRatio: 21.84, dividendYield: 0 },  // The Arab Ceramic CO.- Ceramica Remas
