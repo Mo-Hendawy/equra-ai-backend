@@ -1,0 +1,8 @@
+node_modules
+.planning
+server/data
+server/.api-cache
+test-e2e.db*
+*.log
+.env
+.DS_Store

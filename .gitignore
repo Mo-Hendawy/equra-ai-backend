@@ -5,3 +5,4 @@ node_modules/
 dist/
 .vscode/
 server/data/*.db*
+test-e2e.db*
