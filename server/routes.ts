@@ -2435,6 +2435,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // THNDR: Direct upload from the mobile app — accepts a PDF or image of the invoice
+  // as base64. PDF goes through the existing text parser; images go through Gemini Vision.
+  // No auth token required here — this is called from the app on the user's own device.
+  app.post('/api/thndr/upload', async (req, res) => {
+    try {
+      const { base64, contentType } = (req.body ?? {}) as { base64?: string; contentType?: string };
+      if (!base64 || !contentType) {
+        return res.status(400).json({ error: 'base64 and contentType are required' });
+      }
+      const { handleUpload } = await import('./thndr/inbound-handler.js');
+      const result = await handleUpload({ base64, contentType, symbolMap: EGX_COMPANY_SYMBOL_MAP });
+      return res.json(result);
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/upload error:', e);
+      return res.status(500).json({ error: e.message ?? 'Internal error' });
+    }
+  });
+
   // THNDR: List pending (not-yet-imported) transactions for the mobile review screen.
   app.get('/api/thndr/pending', async (_req, res) => {
     try {
