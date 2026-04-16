@@ -3,6 +3,7 @@ import * as path from 'path';
 import { PDFParse } from 'pdf-parse';
 import * as lancedb from '@lancedb/lancedb';
 import dotenv from 'dotenv';
+import { createWorker, type Worker as TesseractWorker } from 'tesseract.js';
 
 // Load environment variables
 dotenv.config({ path: path.join(process.cwd(), '.env') });
@@ -22,6 +23,58 @@ const DB_PATH = path.join(process.cwd(), "server", "data", "lancedb");
 
 const DELAY_MS = 300;
 const MAX_RETRIES = 5;
+
+// If pdf-parse extracts fewer than this many chunks, assume the PDF is scanned
+// and run Tesseract OCR over rasterized pages as a fallback.
+const OCR_FALLBACK_THRESHOLD = 3;
+
+// Shared Tesseract worker — initialized lazily on first use, reused for all pages.
+// Loads English + Arabic since most Egyptian scanned financial statements are Arabic
+// (with some English for numbers and company names).
+let tesseractWorker: TesseractWorker | null = null;
+async function getTesseractWorker(): Promise<TesseractWorker> {
+    if (tesseractWorker) return tesseractWorker;
+    console.log("  [OCR] Initializing Tesseract with eng+ara (first use — downloads ~20MB traineddata once)...");
+    tesseractWorker = await createWorker(['eng', 'ara']);
+    return tesseractWorker;
+}
+
+/**
+ * Rasterize each PDF page via pdf-parse's getScreenshot, then run Tesseract on each page.
+ * Returns the concatenated OCR text (pages separated by double-newline).
+ */
+async function extractTextViaOCR(pdfBuffer: Buffer, filenameForLog: string): Promise<string> {
+    console.log(`    [OCR] Low text extraction — rasterizing & running Tesseract on ${filenameForLog}...`);
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    let pages: Array<{ data?: Uint8Array; pageNumber: number }> = [];
+    try {
+        const screenshot = await parser.getScreenshot({ imageBuffer: true } as any);
+        // ScreenshotResult shape: { pages: [{ data: Uint8Array, pageNumber, width, height, scale }] }
+        pages = (screenshot as any)?.pages ?? [];
+    } catch (e) {
+        console.warn(`    [OCR] getScreenshot failed for ${filenameForLog}:`, (e as Error).message);
+        await parser.destroy();
+        return "";
+    }
+    await parser.destroy();
+
+    if (pages.length === 0) return "";
+
+    const worker = await getTesseractWorker();
+    const pageTexts: string[] = [];
+    for (const page of pages) {
+        if (!page.data) continue;
+        try {
+            const { data } = await worker.recognize(Buffer.from(page.data));
+            const pageText = (data?.text ?? "").trim();
+            if (pageText) pageTexts.push(pageText);
+            console.log(`    [OCR] page ${page.pageNumber}: ${pageText.length} chars`);
+        } catch (e) {
+            console.warn(`    [OCR] page ${page.pageNumber} failed:`, (e as Error).message);
+        }
+    }
+    return pageTexts.join("\n\n");
+}
 
 async function getEmbedding(text: string): Promise<number[]> {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -125,10 +178,20 @@ async function processCompany(symbol: string, db: lancedb.Connection): Promise<C
             const dataBuffer = fs.readFileSync(filePath);
             const parser = new PDFParse({ data: dataBuffer });
             const result = await parser.getText();
-            const text = result.text;
+            let text = result.text;
             await parser.destroy();
-            
-            const chunks = chunkText(text);
+
+            let chunks = chunkText(text);
+            // If native text extraction yielded too little, assume the PDF is scanned
+            // and fall back to Tesseract OCR on rasterized pages.
+            if (chunks.length < OCR_FALLBACK_THRESHOLD) {
+                const ocrText = await extractTextViaOCR(dataBuffer, file);
+                if (ocrText.length > text.length) {
+                    text = ocrText;
+                    chunks = chunkText(text);
+                    console.log(`    [OCR] replaced extraction: ${chunks.length} chunks after OCR`);
+                }
+            }
             chunksExtracted = chunks.length;
             console.log(`    Extracted ${chunks.length} chunks. Generating embeddings...`);
             
@@ -358,7 +421,13 @@ async function main() {
         writeRagManifest(results);
         writeRagHistory(results);
     }
-    
+
+    // Shut down the Tesseract worker if it was started
+    if (tesseractWorker) {
+        await tesseractWorker.terminate();
+        tesseractWorker = null;
+    }
+
     console.log("\n🎉 ALL DONE! Vectors are stored locally in LanceDB.");
 }
 

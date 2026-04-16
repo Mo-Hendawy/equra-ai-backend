@@ -6,3 +6,11 @@ dist/
 .vscode/
 server/data/*.db*
 test-e2e.db*
+
+# Tesseract language data (downloaded on demand, not source)
+ara.traineddata
+eng.traineddata
+
+# Local OCR test DBs
+test-thndr*.db*
+test-upload*.db*

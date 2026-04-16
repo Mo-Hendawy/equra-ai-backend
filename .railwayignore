@@ -1,8 +1,9 @@
 node_modules
 .planning
-server/data
+server/data/*.db*
 server/.api-cache
-test-e2e.db*
+test-*.db*
 *.log
 .env
 .DS_Store
+# keep server/data/lancedb — RAG vectors are deployed via git
