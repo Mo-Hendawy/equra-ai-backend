@@ -21,7 +21,8 @@ export interface InboundResult {
  */
 export async function persistAndNotify(
   parsed: ParsedThndrTransaction[],
-  symbolMap: SymbolMap
+  symbolMap: SymbolMap,
+  force = false
 ): Promise<InboundResult> {
   const result: InboundResult = {
     receivedCount: parsed.length,
@@ -42,7 +43,7 @@ export async function persistAndNotify(
         knownMap: symbolMap,
         knownTickers,
       });
-      const newId = thndrService.saveIfNew(txn, { symbol: resolved.ticker, source: resolved.source });
+      const newId = thndrService.saveIfNew(txn, { symbol: resolved.ticker, source: resolved.source }, force);
       if (newId === null) {
         result.duplicateCount++;
       } else {
@@ -78,8 +79,9 @@ export async function handleUpload(args: {
   base64: string;
   contentType: string;
   symbolMap: SymbolMap;
+  force?: boolean;
 }): Promise<InboundResult> {
-  const { base64, contentType, symbolMap } = args;
+  const { base64, contentType, symbolMap, force = false } = args;
   const result: InboundResult = {
     receivedCount: 0, savedCount: 0, duplicateCount: 0, transactions: [], errors: [],
   };
@@ -103,7 +105,7 @@ export async function handleUpload(args: {
     result.errors.push(`Parse failed: ${(e as Error).message}`);
     return result;
   }
-  return persistAndNotify(parsed, symbolMap);
+  return persistAndNotify(parsed, symbolMap, force);
 }
 
 export async function handleInbound(

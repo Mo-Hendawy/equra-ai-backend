@@ -24,12 +24,16 @@ class ThndrService {
    */
   saveIfNew(
     parsed: ParsedThndrTransaction,
-    resolved: { symbol: string | null; source: ResolutionSource }
+    resolved: { symbol: string | null; source: ResolutionSource },
+    force = false
   ): number | null {
     const existing = this.db
       .prepare('SELECT id FROM thndr_transactions WHERE transaction_no = ?')
       .get(parsed.transactionNo) as { id: number } | undefined;
-    if (existing) return null;
+    if (existing && !force) return null;
+    if (existing && force) {
+      this.db.prepare('DELETE FROM thndr_transactions WHERE id = ?').run(existing.id);
+    }
 
     const result = this.db
       .prepare(

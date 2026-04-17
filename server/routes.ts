@@ -2440,12 +2440,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // No auth token required here — this is called from the app on the user's own device.
   app.post('/api/thndr/upload', async (req, res) => {
     try {
-      const { base64, contentType } = (req.body ?? {}) as { base64?: string; contentType?: string };
+      const { base64, contentType, force } = (req.body ?? {}) as { base64?: string; contentType?: string; force?: boolean };
       if (!base64 || !contentType) {
         return res.status(400).json({ error: 'base64 and contentType are required' });
       }
       const { handleUpload } = await import('./thndr/inbound-handler.js');
-      const result = await handleUpload({ base64, contentType, symbolMap: EGX_COMPANY_SYMBOL_MAP });
+      const result = await handleUpload({ base64, contentType, symbolMap: EGX_COMPANY_SYMBOL_MAP, force: !!force });
       return res.json(result);
     } catch (e: any) {
       console.error('[routes] /api/thndr/upload error:', e);
