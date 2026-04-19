@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equra AI — System Architecture & Flow Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d28;
+            --surface2: #232636;
+            --border: #2e3148;
+            --text: #e4e6f0;
+            --text-muted: #9ba0b8;
+            --accent: #6c63ff;
+            --accent-light: #8b84ff;
+            --green: #34d399;
+            --amber: #fbbf24;
+            --red: #f87171;
+            --blue: #60a5fa;
+            --cyan: #22d3ee;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1a1040 0%, #0f1117 50%, #0a1628 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 80px 40px 60px;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-light), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto 30px;
+        }
+        .hero .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .badge.proposed { background: rgba(108,99,255,0.2); color: var(--accent-light); border: 1px solid rgba(108,99,255,0.3); }
+        .badge.current  { background: rgba(52,211,153,0.15); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+        .badge.gap      { background: rgba(248,113,113,0.15); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+
+        /* Navigation */
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 900px;
+            margin: -30px auto 40px;
+            padding: 30px 40px;
+            position: relative;
+            z-index: 10;
+        }
+        .toc h2 { font-size: 1.1rem; color: var(--accent-light); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+        .toc a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+        .toc a:hover { background: var(--surface2); color: var(--text); }
+        .toc a .num { color: var(--accent); margin-right: 8px; font-weight: 600; }
+
+        /* Main Content */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 40px 80px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            padding-top: 40px;
+        }
+        h3 {
+            font-size: 1.3rem;
+            color: var(--accent-light);
+            margin: 30px 0 12px;
+        }
+
+        .section-desc {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 1.05rem;
+        }
+
+        /* Diagram Container */
+        .diagram-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0 30px;
+            overflow-x: auto;
+        }
+        .diagram-wrap .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        .diagram-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        /* Info Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: var(--accent); }
+        .card h4 {
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card p { color: var(--text-muted); font-size: 0.95rem; }
+        .card .icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .icon.purple { background: rgba(108,99,255,0.2); }
+        .icon.green  { background: rgba(52,211,153,0.15); }
+        .icon.blue   { background: rgba(96,165,250,0.15); }
+        .icon.amber  { background: rgba(251,191,36,0.15); }
+        .icon.red    { background: rgba(248,113,113,0.15); }
+        .icon.cyan   { background: rgba(34,211,238,0.15); }
+
+        /* Gap Analysis Table */
+        .gap-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .gap-table th {
+            background: var(--surface2);
+            padding: 14px 18px;
+            text-align: left;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .gap-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        .gap-table tr:hover td { background: rgba(108,99,255,0.05); }
+        .status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status.done  { background: rgba(52,211,153,0.15); color: var(--green); }
+        .status.partial { background: rgba(251,191,36,0.15); color: var(--amber); }
+        .status.missing { background: rgba(248,113,113,0.15); color: var(--red); }
+
+        /* Notes */
+        .note {
+            background: rgba(108,99,255,0.08);
+            border-left: 3px solid var(--accent);
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+        .note strong { color: var(--text); }
+
+        .note.warn {
+            background: rgba(251,191,36,0.08);
+            border-left-color: var(--amber);
+        }
+        .note.danger {
+            background: rgba(248,113,113,0.08);
+            border-left-color: var(--red);
+        }
+
+        /* Lists */
+        ul { padding-left: 24px; margin: 10px 0; }
+        li { margin-bottom: 6px; color: var(--text-muted); }
+        li strong { color: var(--text); }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero { padding: 50px 20px 40px; }
+            .hero h1 { font-size: 2rem; }
+            .container { padding: 0 20px 60px; }
+            .toc { margin: -20px 20px 30px; padding: 20px; }
+            .card-grid { grid-template-columns: 1fr; }
+            .diagram-wrap { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- HERO                                                          -->
+<!-- ============================================================ -->
+<div class="hero">
+    <h1>Equra AI</h1>
+    <p class="subtitle">System Architecture &amp; Flow Documentation — Your Personal AI Investment Assistant for the Egyptian Stock Market (EGX)</p>
+    <span class="badge proposed" style="margin-right:8px;">Multi-Agent Architecture</span>
+    <span class="badge current">Current Implementation Baseline</span>
+</div>
+
+<!-- ============================================================ -->
+<!-- TABLE OF CONTENTS                                             -->
+<!-- ============================================================ -->
+<div class="toc">
+    <h2>Contents</h2>
+    <div class="toc-grid">
+        <a href="#overview"><span class="num">01</span> High-Level Architecture</a>
+        <a href="#agents"><span class="num">02</span> Agent Descriptions</a>
+        <a href="#data-layer"><span class="num">03</span> Data &amp; Memory Layer</a>
+        <a href="#flow-portfolio"><span class="num">04</span> Flow: Portfolio Health Check</a>
+        <a href="#flow-compare"><span class="num">05</span> Flow: Stock Comparison</a>
+        <a href="#flow-deepdive"><span class="num">06</span> Flow: Deep Dive Analysis</a>
+        <a href="#flow-deploy"><span class="num">07</span> Flow: Capital Deployment</a>
+        <a href="#flow-vision"><span class="num">08</span> Flow: Transaction Import (Vision)</a>
+        <a href="#data-sources"><span class="num">09</span> Data Source Cascade</a>
+        <a href="#gap-analysis"><span class="num">10</span> Gap Analysis: Current vs Target</a>
+        <a href="#recommendations"><span class="num">11</span> Missing Scenarios &amp; Recommendations</a>
+        <a href="#lessons"><span class="num">12</span> Lessons Learned</a>
+        <a href="#tech-stack"><span class="num">13</span> Tech Stack at a Glance</a>
+        <a href="#whats-next"><span class="num">14</span> What's Next</a>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- 1. HIGH-LEVEL ARCHITECTURE                                    -->
+<!-- ============================================================ -->
+<section id="overview">
+    <h2>01 — High-Level System Architecture</h2>
+    <p class="section-desc">The architecture organizes the system into four distinct layers: User Interface, Agentic Orchestration, Specialized Agents, and Data &amp; Memory.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Multi-Agent Architecture</div>
+        <div class="mermaid">
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'padding': 30}} }%%
+graph TD
+
+    Mobile["📱 React Native Mobile App"]
+
+    Mobile ==> Supervisor
+
+    subgraph Orch["🧠 Agentic Orchestration Layer"]
+        direction LR
+        Supervisor["🎯 Agent Supervisor<br/><i>Routes tasks &amp; aggregates results</i>"]
+        Critic["🔍 Critic Agent<br/><i>Validates facts &amp; figures</i>"]
+    end
+
+    Supervisor <-.->|Validation| Critic
+
+    Supervisor ==> Auditor
+    Supervisor ==> Strategist
+    Supervisor ==> RealTime
+    Supervisor ==> Context
+    Supervisor ==>|AI Synthesis| Gemini
+
+    subgraph Agents["⚡ Specialized Agents"]
+        direction LR
+        Auditor["📊 Auditor Agent<br/><i>Financial reports &amp; filings</i>"]
+        Strategist["🧠 Strategist Agent<br/><i>Portfolio &amp; investor profile</i>"]
+        RealTime["📡 Real-Time Agent<br/><i>Live prices &amp; news</i>"]
+        Context["📋 Context Agent<br/><i>Historical data &amp; quarterly analysis</i>"]
+    end
+
+    Auditor --> LongTerm
+    Strategist --> Session
+    Strategist --> LongTerm
+    Context --> LongTerm
+    RealTime --> Cache
+
+    subgraph Data["💾 Data &amp; Memory Layer"]
+        direction LR
+        Session["🔄 Session Memory<br/><i>Current conversation</i>"]
+        LongTerm["🧠 Long-Term Memory<br/><i>Vector DB</i>"]
+        Cache["📦 API Cache<br/><i>24h TTL file cache</i>"]
+    end
+
+    RealTime --> EODHD
+    RealTime --> TV
+    RealTime --> CNBC
+    RealTime --> Mubasher
+    Context --> EODHD
+
+    subgraph External["🌐 External APIs"]
+        direction LR
+        EODHD["EODHD API"]
+        TV["TradingView"]
+        CNBC["CNBC"]
+        Mubasher["Mubasher"]
+        Gemini["Google Gemini AI"]
+    end
+
+    style Mobile fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style Orch fill:#0f1930,stroke:#60a5fa,stroke-width:2px,color:#e4e6f0
+    style Agents fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+    style Data fill:#1f1a0a,stroke:#fbbf24,stroke-width:2px,color:#e4e6f0
+    style External fill:#1a0a0a,stroke:#f87171,stroke-width:1px,color:#e4e6f0
+
+    linkStyle 0 stroke:#6c63ff,stroke-width:3px
+    linkStyle 1 stroke:#60a5fa,stroke-width:2px,stroke-dasharray:5
+    linkStyle 2 stroke:#34d399,stroke-width:3px
+    linkStyle 3 stroke:#34d399,stroke-width:3px
+    linkStyle 4 stroke:#34d399,stroke-width:3px
+    linkStyle 5 stroke:#34d399,stroke-width:3px
+    linkStyle 6 stroke:#f87171,stroke-width:2px
+        </div>
+    </div>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Current Implementation (Simplified)</div>
+        <div class="mermaid">
+graph LR
+    App["📱 React Native App"] -->|HTTP| API["🖥️ Express.js API<br/>server/routes.ts"]
+    API -->|Price Data| EODHD["EODHD"]
+    API -->|Fallback| TV["TradingView"]
+    API -->|Fallback| CNBC["CNBC"]
+    API -->|Fundamentals| Mub["Mubasher"]
+    API -->|Analysis| Gemini["Gemini 2.5<br/>Flash Lite"]
+    API -->|Cache| Files["📦 File Cache<br/>.api-cache/"]
+    App -->|Local| AS["AsyncStorage<br/>Holdings, Dividends,<br/>Watchlist, etc."]
+
+    style App fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style API fill:#0f1930,stroke:#60a5fa,stroke-width:2px,color:#e4e6f0
+    style Gemini fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+        </div>
+    </div>
+
+    <div class="note">
+        <strong>Key Insight:</strong> The current system uses a monolithic Express.js API with direct Gemini calls via different prompts. The target architecture upgrades this to a true multi-agent orchestration with supervisor routing, critic validation, and persistent memory.
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 2. AGENT DESCRIPTIONS                                         -->
+<!-- ============================================================ -->
+<section id="agents">
+    <h2>02 — Agent Descriptions</h2>
+    <p class="section-desc">Each agent is a specialized AI component with a distinct role, tools, and data access pattern.</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon blue">🎯</span> Agent Supervisor</h4>
+            <p>The orchestrator. Receives user requests, decomposes them into sub-tasks, dispatches to the right agents, aggregates their results, and sends to Gemini for final synthesis. Manages conversation flow and error recovery.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon purple">🔍</span> Critic Agent</h4>
+            <p>Quality gate. Reviews every response before it reaches the user. Cross-checks financial figures against raw data sources, validates calculations (P/E, fair value, Sharpe ratio), and flags hallucinated or outdated information.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon green">📊</span> Auditor Agent</h4>
+            <p>Financial statement expert. Reads and interprets annual reports, quarterly earnings, balance sheets, income statements, and cash flow statements. Extracts KPIs like revenue growth, debt ratios, and profit margins.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon cyan">📡</span> Real-Time Agent</h4>
+            <p>Market data specialist. Fetches live prices, volumes, historical data via EODHD, TradingView, CNBC, and Mubasher. Manages the data source fallback cascade and maintains the 24h API cache.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">🧠</span> Strategist Agent</h4>
+            <p>Personalization engine. Maintains the investor profile (risk tolerance, goals, budget, sector preferences). Tailors all recommendations to the user's specific situation — not generic advice.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon red">📋</span> Context Agent</h4>
+            <p>Manages historical context — quarterly revenue analysis, financial sheets over time, sector trends, and macro indicators. Provides temporal depth that real-time data alone cannot offer.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 3. DATA & MEMORY LAYER                                        -->
+<!-- ============================================================ -->
+<section id="data-layer">
+    <h2>03 — Data &amp; Memory Layer</h2>
+    <p class="section-desc">The memory architecture provides three tiers of data persistence for context-aware, personalized responses.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Memory Architecture</div>
+        <div class="mermaid">
+graph TB
+    subgraph Session["🔄 Session Memory"]
+        S1["Current conversation context"]
+        S2["Active portfolio snapshot"]
+        S3["User's current question chain"]
+        S4["Intermediate agent results"]
+    end
+
+    subgraph LongTerm["🧠 Long-Term Memory (Vector DB)"]
+        L1["Past analyses &amp; recommendations"]
+        L2["Historical financial reports"]
+        L3["Quarter revenue data over time"]
+        L4["User preference patterns"]
+        L5["Earnings call summaries"]
+    end
+
+    subgraph Cache["📦 API Cache (File-based)"]
+        C1["price_{symbol}.json — 24h TTL"]
+        C2["historical_{symbol}_{days}.json"]
+        C3["gemini_analysis_{symbol}.json"]
+        C4["Stale cache fallback on API failure"]
+    end
+
+    subgraph Local["📱 Mobile Local Storage"]
+        M1["Holdings &amp; Certificates"]
+        M2["Dividends &amp; Expenses"]
+        M3["Watchlist &amp; Targets"]
+        M4["Realized Gains"]
+        M5["Transaction History"]
+    end
+
+    Agents["Specialized Agents"] --> Session
+    Agents --> LongTerm
+    Agents --> Cache
+    Mobile["Mobile App"] --> Local
+
+    style Session fill:#0f1930,stroke:#60a5fa,stroke-width:2px,color:#e4e6f0
+    style LongTerm fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style Cache fill:#1f1a0a,stroke:#fbbf24,stroke-width:2px,color:#e4e6f0
+    style Local fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+        </div>
+    </div>
+
+    <div class="note">
+        <strong>Current State:</strong> Only the API Cache (file-based, 24h TTL) and Mobile Local Storage (AsyncStorage) are implemented. Session Memory and Long-Term Vector DB are planned additions.
+    </div>
+
+    <h3>Historical Data &amp; Quarter Revenue Analysis</h3>
+    <p class="section-desc">The Context Agent would handle temporal financial data:</p>
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon purple">📈</span> Quarterly Revenue Tracking</h4>
+            <p>Store and analyze revenue trends across quarters. Detect acceleration/deceleration patterns, seasonal effects, and compare against analyst estimates.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon green">📑</span> Financial Sheet Analysis</h4>
+            <p>Parse balance sheets, income statements, and cash flow statements over multiple periods. Track debt evolution, margin expansion, and working capital health.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon blue">🔄</span> Historical Comparison</h4>
+            <p>Compare current valuations to historical ranges. Identify if a stock is cheap/expensive relative to its own history, not just peers.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 4. FLOW: PORTFOLIO HEALTH CHECK                               -->
+<!-- ============================================================ -->
+<section id="flow-portfolio">
+    <h2>04 — Flow: Portfolio Health Check</h2>
+    <p class="section-desc">User connects their portfolio and receives a comprehensive analysis of strengths, weaknesses, diversification, and personalized improvement suggestions.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Sequence Diagram — Portfolio Health Check</div>
+        <div class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as 📱 Mobile App
+    participant Sup as 🎯 Supervisor
+    participant Strat as 🧠 Strategist
+    participant RT as 📡 Real-Time
+    participant Aud as 📊 Auditor
+    participant Critic as 🔍 Critic
+    participant Gemini as 🤖 Gemini AI
+    participant Mem as 💾 Memory
+
+    User->>App: "Analyze my portfolio"
+    App->>Sup: POST /api/portfolio-analysis<br/>{holdings, sectors, weights}
+    
+    Note over Sup: Decomposes task into subtasks
+
+    par Parallel Agent Dispatch
+        Sup->>Strat: Get investor profile &<br/>risk tolerance
+        Strat->>Mem: Fetch user preferences
+        Mem-->>Strat: Profile data
+        Strat-->>Sup: Investor profile ready
+    and
+        Sup->>RT: Fetch live prices for<br/>all holdings
+        RT->>RT: EODHD → TradingView → CNBC<br/>(fallback cascade)
+        RT-->>Sup: Current prices & P/L
+    and
+        Sup->>Aud: Get fundamental data<br/>for each holding
+        Aud->>Mem: Check historical reports
+        Mem-->>Aud: Cached financials
+        Aud-->>Sup: P/E, EPS, dividends
+    end
+
+    Sup->>Gemini: Synthesize analysis with:<br/>• Holdings + weights<br/>• Live prices + P/L<br/>• Fundamentals<br/>• Investor profile
+
+    Gemini-->>Sup: Portfolio analysis response
+
+    Sup->>Critic: Validate response
+    Note over Critic: Cross-check figures<br/>against raw data
+    
+    alt Validation Passes
+        Critic-->>Sup: ✅ Approved
+        Sup->>Mem: Store analysis in memory
+        Sup-->>App: Portfolio analysis result
+        App-->>User: Display health dashboard
+    else Validation Fails
+        Critic-->>Sup: ❌ Issues found
+        Sup->>Gemini: Re-generate with corrections
+        Gemini-->>Sup: Corrected analysis
+        Sup-->>App: Corrected result
+        App-->>User: Display health dashboard
+    end
+        </div>
+    </div>
+
+    <h3>Response Structure</h3>
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon green">✅</span> What's Working</h4>
+            <p>Highlights strong performers, well-diversified sectors, and holdings aligned with user goals.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon red">⚠️</span> Weaknesses</h4>
+            <p>Over-concentration risks, underperformers, sector imbalances, and misalignment with risk profile.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon blue">💡</span> Recommendations</h4>
+            <p>Specific actions: rebalance allocations, trim/add positions, sector rotation suggestions.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 5. FLOW: STOCK COMPARISON                                     -->
+<!-- ============================================================ -->
+<section id="flow-compare">
+    <h2>05 — Flow: Stock Comparison</h2>
+    <p class="section-desc">User asks to compare 2-3 stocks. The system fetches data for each, analyzes them against the user's profile, and provides a ranked recommendation.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Sequence Diagram — Stock Comparison</div>
+        <div class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as 📱 Mobile App
+    participant Sup as 🎯 Supervisor
+    participant Strat as 🧠 Strategist
+    participant RT as 📡 Real-Time
+    participant Aud as 📊 Auditor
+    participant Critic as 🔍 Critic
+    participant Gemini as 🤖 Gemini AI
+
+    User->>App: "Compare COMI vs HRHO"
+    App->>Sup: POST /api/compare-stocks<br/>{symbols: [COMI, HRHO], capital: 50000}
+
+    Note over Sup: Step 1 — Gather data in parallel
+
+    par Data Collection
+        Sup->>RT: Get prices for COMI & HRHO
+        RT-->>Sup: Live prices, 52w range, volume
+    and
+        Sup->>Aud: Get fundamentals for both
+        Aud-->>Sup: P/E, EPS, dividend yield,<br/>revenue growth, debt ratios
+    and
+        Sup->>Strat: Get investor profile
+        Strat-->>Sup: Risk tolerance: moderate<br/>Goal: growth + dividends
+    end
+
+    Note over Sup: Step 2 — AI Synthesis
+
+    Sup->>Gemini: Compare stocks with context:<br/>• Price data for both<br/>• Fundamentals for both<br/>• User is moderate risk<br/>• Has 50,000 EGP to deploy
+
+    Gemini-->>Sup: Comparison analysis
+
+    Note over Sup: Step 3 — Quality Gate
+
+    Sup->>Critic: Validate all numbers
+    Critic->>Critic: Check P/E matches source<br/>Check price is current<br/>Check math on allocations
+
+    Critic-->>Sup: ✅ All figures verified
+
+    Sup-->>App: Comparison result
+    App-->>User: Display side-by-side<br/>comparison with verdict
+
+    Note over User: Sees: Rankings, Verdict,<br/>Allocation suggestion,<br/>Buy urgency per stock
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 6. FLOW: DEEP DIVE ANALYSIS                                   -->
+<!-- ============================================================ -->
+<section id="flow-deepdive">
+    <h2>06 — Flow: Deep Dive Stock Analysis</h2>
+    <p class="section-desc">A comprehensive single-stock analysis covering valuation, technical levels, risk assessment, and investment thesis.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Sequence Diagram — Deep Dive Analysis</div>
+        <div class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as 📱 Mobile App
+    participant Sup as 🎯 Supervisor
+    participant RT as 📡 Real-Time
+    participant Aud as 📊 Auditor
+    participant Ctx as 📋 Context Agent
+    participant Critic as 🔍 Critic
+    participant Gemini as 🤖 Gemini AI
+    participant Cache as 📦 Cache
+
+    User->>App: "Analyze COMI"
+    App->>Sup: GET /api/analysis/COMI
+
+    Note over Sup: Check cache first
+    Sup->>Cache: Check gemini_analysis_COMI.json
+    
+    alt Cache Hit (< 24h)
+        Cache-->>Sup: Cached analysis
+        Sup-->>App: Return cached result
+    else Cache Miss or Stale
+        Note over Sup: Full analysis pipeline
+
+        par Data Gathering
+            Sup->>RT: Fetch current price
+            RT->>RT: EODHD → TradingView → CNBC
+            RT-->>Sup: Price: 85.50 EGP
+        and
+            Sup->>RT: Fetch 365-day history
+            RT-->>Sup: Historical prices array
+        and
+            Sup->>Aud: Get financial data
+            Aud->>Aud: TradingView → Mubasher → EGX static
+            Aud-->>Sup: P/E: 8.5, EPS: 10.06,<br/>Div Yield: 5.8%
+        and
+            Sup->>Ctx: Get quarterly revenue trend
+            Ctx-->>Sup: Q1-Q4 revenue data,<br/>YoY growth rates
+        end
+
+        Note over Sup: Calculate risk metrics
+        Sup->>Sup: Sharpe Ratio from daily returns<br/>Sortino Ratio (downside only)<br/>Max Drawdown
+
+        Sup->>Gemini: Full analysis prompt:<br/>• Current price & fundamentals<br/>• Historical data & risk metrics<br/>• Quarterly revenue trends<br/>• Sector context (EGX)
+
+        Gemini-->>Sup: Structured analysis JSON
+
+        Sup->>Critic: Validate response
+        Critic-->>Sup: ✅ Verified
+
+        Sup->>Cache: Store analysis
+        Sup-->>App: Analysis result
+    end
+
+    App-->>User: Display full analysis
+
+    Note over User: Fair Value, Entry Zones,<br/>Target Prices, Risk Level,<br/>Investment Thesis
+        </div>
+    </div>
+
+    <h3>Analysis Output Structure</h3>
+    <div class="diagram-wrap">
+        <div class="diagram-title">Analysis Response Model</div>
+        <div class="mermaid">
+graph LR
+    A["📊 Stock Analysis"] --> B["💰 Fair Value Estimate"]
+    A --> C["🎯 Entry Zones<br/>Strong Buy / Buy / Hold"]
+    A --> D["📈 Target Prices<br/>Conservative / Base / Optimistic"]
+    A --> E["⚠️ Risk Assessment<br/>Level + Factors"]
+    A --> F["💡 Investment Thesis<br/>Bull &amp; Bear Case"]
+    A --> G["📉 Risk Metrics<br/>Sharpe, Sortino, MaxDD"]
+    A --> H["🔄 Quarterly Trends<br/>Revenue, Margins"]
+
+    style A fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style B fill:#0f2818,stroke:#34d399,stroke-width:1px,color:#e4e6f0
+    style C fill:#0f2818,stroke:#34d399,stroke-width:1px,color:#e4e6f0
+    style D fill:#0f2818,stroke:#34d399,stroke-width:1px,color:#e4e6f0
+    style E fill:#1f1a0a,stroke:#fbbf24,stroke-width:1px,color:#e4e6f0
+    style F fill:#0f1930,stroke:#60a5fa,stroke-width:1px,color:#e4e6f0
+    style G fill:#0f1930,stroke:#60a5fa,stroke-width:1px,color:#e4e6f0
+    style H fill:#0f1930,stroke:#60a5fa,stroke-width:1px,color:#e4e6f0
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 7. FLOW: CAPITAL DEPLOYMENT                                   -->
+<!-- ============================================================ -->
+<section id="flow-deploy">
+    <h2>07 — Flow: Capital Deployment</h2>
+    <p class="section-desc">User has capital to invest and wants AI-driven allocation recommendations based on their portfolio gaps and market conditions.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Sequence Diagram — Capital Deployment</div>
+        <div class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as 📱 Mobile App
+    participant Sup as 🎯 Supervisor
+    participant Strat as 🧠 Strategist
+    participant RT as 📡 Real-Time
+    participant Aud as 📊 Auditor
+    participant Gemini as 🤖 Gemini AI
+
+    User->>App: "I have 100,000 EGP to invest"
+    App->>Sup: POST /api/deploy-capital<br/>{amount: 100000, holdings, targets}
+
+    par
+        Sup->>Strat: Analyze current portfolio<br/>gaps vs target allocation
+        Strat-->>Sup: Under-allocated sectors,<br/>missing roles (growth, value)
+    and
+        Sup->>RT: Scan candidates<br/>from watchlist + market
+        RT-->>Sup: Top candidates with<br/>current prices
+    and
+        Sup->>Aud: Get fundamentals for<br/>candidate stocks
+        Aud-->>Sup: Valuation data
+    end
+
+    Sup->>Gemini: Deploy 100K EGP:<br/>• Current portfolio composition<br/>• Target allocation gaps<br/>• Candidate fundamentals<br/>• Risk profile: moderate
+
+    Gemini-->>Sup: Deployment plan
+
+    Sup-->>App: Recommendations
+    App-->>User: Display allocation plan
+
+    Note over User: Sees: Stock picks,<br/>Amount per stock,<br/>Rationale for each,<br/>Expected portfolio impact
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 8. FLOW: VISION TRANSACTION IMPORT                             -->
+<!-- ============================================================ -->
+<section id="flow-vision">
+    <h2>08 — Flow: Transaction Import via Screenshot</h2>
+    <p class="section-desc">Users can photograph their brokerage statements and the system extracts transaction data using Google Gemini's vision capabilities.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Sequence Diagram — Vision-Based Transaction Import</div>
+        <div class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as 📱 Mobile App
+    participant API as 🖥️ Express API
+    participant Vision as 👁️ Gemini Vision
+    participant Storage as 📱 AsyncStorage
+
+    User->>App: Takes photo of<br/>brokerage statement
+    App->>API: POST /api/extract-transactions<br/>{image: base64}
+
+    API->>Vision: Analyze image with prompt:<br/>"Extract stock transactions<br/>from this brokerage statement"
+
+    Vision->>Vision: OCR + Understanding:<br/>• Identify table structure<br/>• Extract symbol, date,<br/>  type, quantity, price
+
+    Vision-->>API: Extracted transactions JSON
+
+    API-->>App: Transaction data
+
+    App->>User: "I found 5 transactions.<br/>Please verify:"
+
+    User->>App: Confirms / edits data
+    App->>Storage: Save verified transactions
+
+    Note over User: Transactions added to<br/>portfolio automatically
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 9. DATA SOURCE CASCADE                                        -->
+<!-- ============================================================ -->
+<section id="data-sources">
+    <h2>09 — Data Source Fallback Cascade</h2>
+    <p class="section-desc">The system uses multiple data sources with automatic fallback to ensure data availability even when primary sources fail.</p>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Price Data Cascade</div>
+        <div class="mermaid">
+graph TD
+    Start["Request Price Data"] --> EODHD{"1. EODHD API"}
+    EODHD -->|✅ Success| Done["Return Price"]
+    EODHD -->|❌ Fail/Timeout| TV{"2. TradingView Scanner"}
+    TV -->|✅ Success| Done
+    TV -->|❌ Fail| CNBC{"3. CNBC Quote API"}
+    CNBC -->|✅ Success| Done
+    CNBC -->|❌ Fail| Stale{"4. Stale Cache?"}
+    Stale -->|Yes| StaleData["Return Stale Data<br/>+ Warning Flag"]
+    Stale -->|No| Error["Return Error"]
+
+    style Start fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style Done fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+    style Error fill:#1a0a0a,stroke:#f87171,stroke-width:2px,color:#e4e6f0
+    style StaleData fill:#1f1a0a,stroke:#fbbf24,stroke-width:2px,color:#e4e6f0
+        </div>
+    </div>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">Fundamental Data Cascade</div>
+        <div class="mermaid">
+graph TD
+    Start["Request Fundamentals"] --> TV{"1. TradingView<br/>EPS, P/E, Div Yield"}
+    TV -->|✅ Success| Done["Return Fundamentals"]
+    TV -->|❌ Fail| Mub{"2. Mubasher API<br/>P/E, Market Cap"}
+    Mub -->|✅ Success| Done
+    Mub -->|❌ Fail| Static{"3. EGX Static Data<br/>Hardcoded P/E &amp; Yields"}
+    Static -->|Found| Done
+    Static -->|Not Found| Fallback["Formula-Based<br/>Fallback Analysis"]
+
+    style Start fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style Done fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+    style Fallback fill:#1f1a0a,stroke:#fbbf24,stroke-width:2px,color:#e4e6f0
+        </div>
+    </div>
+
+    <div class="diagram-wrap">
+        <div class="diagram-title">AI Analysis Cascade</div>
+        <div class="mermaid">
+graph TD
+    Start["Generate Analysis"] --> Gemini{"1. Gemini 2.5 Flash Lite"}
+    Gemini -->|✅ Valid JSON| Done["Return AI Analysis"]
+    Gemini -->|❌ Invalid JSON| Retry{"2. Retry with<br/>Stricter Prompt"}
+    Retry -->|✅ Success| Done
+    Retry -->|❌ Fail| CachedAI{"3. Cached AI Analysis?"}
+    CachedAI -->|Yes| Stale["Return Cached<br/>+ Stale Warning"]
+    CachedAI -->|No| Formula["4. Formula-Based<br/>Fallback Analysis"]
+    Formula --> Done2["Return Deterministic<br/>Analysis"]
+
+    style Start fill:#1a1040,stroke:#6c63ff,stroke-width:2px,color:#e4e6f0
+    style Done fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+    style Done2 fill:#0f2818,stroke:#34d399,stroke-width:2px,color:#e4e6f0
+    style Stale fill:#1f1a0a,stroke:#fbbf24,stroke-width:2px,color:#e4e6f0
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 10. GAP ANALYSIS                                               -->
+<!-- ============================================================ -->
+<section id="gap-analysis">
+    <h2>10 — Gap Analysis: Current vs Target</h2>
+    <p class="section-desc">Comparing what's implemented in the codebase today against the target multi-agent architecture.</p>
+
+    <table class="gap-table">
+        <thead>
+            <tr>
+                <th>Component</th>
+                <th>Target Design</th>
+                <th>Current State</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Agent Supervisor</strong></td>
+                <td>Orchestrates task routing, manages agent lifecycle</td>
+                <td>Express.js routes call functions directly</td>
+                <td><span class="status missing">Not Built</span></td>
+            </tr>
+            <tr>
+                <td><strong>Critic Agent</strong></td>
+                <td>Validates all facts, figures, calculations before user sees response</td>
+                <td>No validation layer — raw Gemini output with JSON parsing only</td>
+                <td><span class="status missing">Not Built</span></td>
+            </tr>
+            <tr>
+                <td><strong>Auditor Agent</strong></td>
+                <td>Reads financial reports, quarterly filings, extracts KPIs</td>
+                <td>Static hardcoded data + API fetches. No document reading capability</td>
+                <td><span class="status partial">Partial</span></td>
+            </tr>
+            <tr>
+                <td><strong>Real-Time Agent</strong></td>
+                <td>Live prices with fallback cascade</td>
+                <td>Implemented with EODHD → TradingView → CNBC cascade + 24h cache</td>
+                <td><span class="status done">Implemented</span></td>
+            </tr>
+            <tr>
+                <td><strong>Strategist Agent</strong></td>
+                <td>Maintains investor profile, tailors all recommendations</td>
+                <td>Portfolio data passed as context in prompt — no persistent profile</td>
+                <td><span class="status partial">Partial</span></td>
+            </tr>
+            <tr>
+                <td><strong>Context Agent</strong></td>
+                <td>Historical data, quarterly revenue, financial sheet analysis</td>
+                <td>Not implemented — only current-period data</td>
+                <td><span class="status missing">Not Built</span></td>
+            </tr>
+            <tr>
+                <td><strong>Session Memory</strong></td>
+                <td>Conversation context, follow-up questions, active analysis</td>
+                <td>Stateless API — each request is independent</td>
+                <td><span class="status missing">Not Built</span></td>
+            </tr>
+            <tr>
+                <td><strong>Long-Term Memory (Vector DB)</strong></td>
+                <td>Past analyses, user patterns, historical reports</td>
+                <td>Not implemented</td>
+                <td><span class="status missing">Not Built</span></td>
+            </tr>
+            <tr>
+                <td><strong>API Cache</strong></td>
+                <td>Multi-tier caching with TTL</td>
+                <td>File-based 24h cache in .api-cache/ directory</td>
+                <td><span class="status done">Implemented</span></td>
+            </tr>
+            <tr>
+                <td><strong>Portfolio Analysis</strong></td>
+                <td>Agent-orchestrated with validation</td>
+                <td>Direct Gemini call with portfolio prompt</td>
+                <td><span class="status partial">Partial</span></td>
+            </tr>
+            <tr>
+                <td><strong>Stock Comparison</strong></td>
+                <td>Multi-agent data gathering + personalized verdict</td>
+                <td>Direct Gemini call with comparison prompt</td>
+                <td><span class="status partial">Partial</span></td>
+            </tr>
+            <tr>
+                <td><strong>Vision Import</strong></td>
+                <td>Screenshot-based transaction extraction</td>
+                <td>Implemented with Gemini Vision API</td>
+                <td><span class="status done">Implemented</span></td>
+            </tr>
+            <tr>
+                <td><strong>Mobile App</strong></td>
+                <td>React Native UI</td>
+                <td>Full app with 19 screens, charts, portfolio management</td>
+                <td><span class="status done">Implemented</span></td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<!-- 11. RECOMMENDATIONS                                            -->
+<!-- ============================================================ -->
+<section id="recommendations">
+    <h2>11 — Missing Scenarios &amp; Recommendations</h2>
+    <p class="section-desc">Areas where the architecture could be strengthened.</p>
+
+    <h3>Missing Scenarios in the Current Design</h3>
+
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon red">1.</span> Error Recovery &amp; Graceful Degradation</h4>
+            <p>What happens when Gemini is down? When all price sources fail? The architecture diagram doesn't show error handling flows. <strong>Recommendation:</strong> Add a fallback path in each sequence diagram showing degraded-but-functional responses.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon red">2.</span> Rate Limiting &amp; Quota Management</h4>
+            <p>No mention of how API rate limits are handled across EODHD, TradingView, Gemini. <strong>Recommendation:</strong> Add a Rate Limiter component that tracks quotas per source and prioritizes cache when limits are near.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon red">3.</span> User Authentication &amp; Data Security</h4>
+            <p>Portfolio data is sensitive financial information. No auth layer shown. <strong>Recommendation:</strong> Add JWT/OAuth authentication and encrypted storage for portfolio data.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon red">4.</span> News &amp; Sentiment Analysis</h4>
+            <p>The Real-Time Agent mentions "news" but there's no news feed integration or sentiment analysis pipeline. <strong>Recommendation:</strong> Add a Sentiment Agent or give the Real-Time Agent news API access (e.g., NewsAPI, company announcements from EGX).</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">5.</span> Alerting &amp; Notifications</h4>
+            <p>No proactive alerts when a watched stock hits a target price or a held stock drops significantly. <strong>Recommendation:</strong> Add a Monitoring Agent that runs periodic checks and pushes notifications.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">6.</span> Multi-Turn Conversation</h4>
+            <p>The session memory is planned but the flows show single request-response. <strong>Recommendation:</strong> Design a conversation flow where the user can ask follow-ups like "What about HRHO instead?" without re-stating context.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">7.</span> Backtesting &amp; What-If Scenarios</h4>
+            <p>No ability to simulate "What if I had bought COMI 6 months ago?" or "What if the market drops 10%?" <strong>Recommendation:</strong> Add a Simulation Agent with historical backtesting capabilities.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">8.</span> Dividend &amp; Income Projection</h4>
+            <p>Dividend data exists in the mobile app but no projection model. <strong>Recommendation:</strong> Have the Strategist Agent project future dividend income based on history and payout ratios.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon purple">9.</span> Regulatory Compliance</h4>
+            <p>Financial advice has legal implications. No disclaimer system or compliance checks. <strong>Recommendation:</strong> Add mandatory disclaimers and ensure outputs always state "not financial advice" with confidence levels.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon purple">10.</span> Audit Trail &amp; Explainability</h4>
+            <p>No logging of why a recommendation was made. <strong>Recommendation:</strong> Store the full reasoning chain (which agents contributed, what data was used) for every recommendation.</p>
+        </div>
+    </div>
+
+    <h3>Architecture Strengths</h3>
+    <div class="note">
+        <strong>What's Good About the Design:</strong>
+        <ul>
+            <li><strong>Separation of Concerns:</strong> Each agent has a clear, focused responsibility — this scales well.</li>
+            <li><strong>Critic Agent:</strong> Having a validation layer before user-facing output is excellent for financial applications where accuracy matters.</li>
+            <li><strong>Parallel Execution:</strong> Agents can gather data simultaneously, reducing latency.</li>
+            <li><strong>Personalization via Strategist:</strong> Most robo-advisors give generic advice — the Strategist Agent differentiates Equra AI.</li>
+            <li><strong>Data Source Redundancy:</strong> The fallback cascade for price data is production-ready and resilient.</li>
+        </ul>
+    </div>
+
+    <h3>Suggested Priority Roadmap</h3>
+    <div class="diagram-wrap">
+        <div class="diagram-title">Implementation Priority</div>
+        <div class="mermaid">
+gantt
+    title Equra AI — Implementation Roadmap
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+    
+    section Phase 1 — Foundation
+    Agent Supervisor (LangGraph)         :a1, 2025-07-01, 30d
+    Session Memory                       :a2, after a1, 14d
+    Critic Agent (validation layer)      :a3, after a1, 21d
+    
+    section Phase 2 — Intelligence
+    Context Agent (quarterly data)       :b1, after a3, 21d
+    Long-Term Memory (Vector DB)         :b2, after a2, 21d
+    Enhanced Auditor (report parsing)    :b3, after b1, 14d
+    
+    section Phase 3 — Experience
+    Multi-turn conversation              :c1, after b2, 14d
+    News &amp; Sentiment integration         :c2, after b3, 21d
+    Alerting system                      :c3, after c1, 14d
+    
+    section Phase 4 — Advanced
+    Backtesting engine                   :d1, after c2, 30d
+    Authentication &amp; security           :d2, after c3, 21d
+    Audit trail &amp; compliance            :d3, after d2, 14d
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 12. LESSONS LEARNED                                           -->
+<!-- ============================================================ -->
+<section id="lessons">
+    <h2>12 — Lessons Learned (So Far)</h2>
+    <p class="section-desc">Building an AI-powered financial assistant for an emerging market taught us things no tutorial could. Here are the honest takeaways.</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon red">1.</span> Start Monolithic, Earn Your Agents</h4>
+            <p>We didn't start with a multi-agent system — and that was the right call. Our first version was a single Express API making direct Gemini calls with different prompts. It worked. It shipped. Users gave feedback. <strong>Only after we understood the real failure modes</strong> — hallucinated P/E ratios, stale prices, generic advice — did the agent architecture become obvious. Each agent exists because a real problem demanded it, not because an architecture diagram looked cool.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">2.</span> Financial Data is a Mess (Especially in Emerging Markets)</h4>
+            <p>In the US, you call one API and get clean data. In the Egyptian market (EGX), no single source is reliable. EODHD has gaps. TradingView blocks you. CNBC is delayed. Mubasher changes its API. We built a <strong>four-layer fallback cascade</strong> not because we wanted to — because we had to. If you're building for any market outside the US/EU, budget 3x the time you think you'll need for data ingestion.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon green">3.</span> The Critic Agent is Not Optional for Finance</h4>
+            <p>LLMs hallucinate. That's a known fact. But when an LLM tells someone a stock's P/E is 5 when it's actually 50, that's not a quirky mistake — it's a financial decision made on false data. The Critic Agent isn't a nice-to-have. It's the difference between a toy project and something people can actually trust with their money.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon blue">4.</span> Cache Everything, Trust Nothing</h4>
+            <p>Our 24-hour file cache with stale fallback has saved us countless times. APIs go down at the worst moments. Rate limits hit mid-analysis. The lesson: <strong>always return something useful</strong>. A slightly stale price with a warning is infinitely better than a loading spinner that never resolves.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon purple">5.</span> Personalization is the Moat</h4>
+            <p>Every finance app can show you a stock's P/E ratio. The thing that makes users come back is when the system says <em>"Based on your portfolio being 40% banking sector, adding COMI would increase your concentration risk — consider SWDY instead."</em> Generic analysis is a commodity. Personalized analysis is a product.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon cyan">6.</span> Prompts Are Your Agent Logic (For Now)</h4>
+            <p>Before you reach for LangGraph or CrewAI, consider this: our entire "multi-agent" behavior started as different system prompts on the same model. The Auditor prompt focuses on financials. The Strategist prompt gets the user's portfolio context. This works surprisingly well and is <strong>far easier to debug</strong> than a real agent framework. Graduate to proper agents when prompt-switching becomes a bottleneck — not before.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 13. TECH STACK                                                -->
+<!-- ============================================================ -->
+<section id="tech-stack">
+    <h2>13 — Tech Stack at a Glance</h2>
+    <p class="section-desc">For developers who want to build something similar — here's everything we used and why.</p>
+
+    <table class="gap-table">
+        <thead>
+            <tr>
+                <th>Layer</th>
+                <th>Technology</th>
+                <th>Why We Chose It</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Mobile App</strong></td>
+                <td>React Native + Expo</td>
+                <td>Cross-platform from day one. Expo's managed workflow meant zero native build headaches.</td>
+            </tr>
+            <tr>
+                <td><strong>Navigation</strong></td>
+                <td>React Navigation</td>
+                <td>Industry standard for RN. Stack + Tab navigators cover every screen pattern we needed.</td>
+            </tr>
+            <tr>
+                <td><strong>Data Fetching</strong></td>
+                <td>TanStack Query (React Query)</td>
+                <td>Caching, refetching, loading states — all handled. Reduced our data layer code by ~60%.</td>
+            </tr>
+            <tr>
+                <td><strong>Charts</strong></td>
+                <td>Victory Native</td>
+                <td>Smooth, performant charts on mobile. Donut charts for diversification, line charts for history.</td>
+            </tr>
+            <tr>
+                <td><strong>Local Storage</strong></td>
+                <td>AsyncStorage</td>
+                <td>Simple key-value persistence for portfolio data. Good enough until we add cloud sync.</td>
+            </tr>
+            <tr>
+                <td><strong>Backend</strong></td>
+                <td>Express.js + TypeScript</td>
+                <td>Fast to build, easy to deploy. TypeScript catches the bugs that financial data edge cases love to create.</td>
+            </tr>
+            <tr>
+                <td><strong>AI Model</strong></td>
+                <td>Google Gemini 2.5 Flash Lite</td>
+                <td>Best cost-to-quality ratio for structured financial analysis. Vision API for transaction screenshots is a bonus.</td>
+            </tr>
+            <tr>
+                <td><strong>Price Data</strong></td>
+                <td>EODHD (primary)</td>
+                <td>Best EGX coverage we found. Affordable. Historical data included. Supplemented with TradingView, CNBC, Mubasher as fallbacks.</td>
+            </tr>
+            <tr>
+                <td><strong>Caching</strong></td>
+                <td>File-based JSON (custom)</td>
+                <td>No Redis dependency for a small deployment. JSON files with TTL headers. Stale-while-revalidate pattern.</td>
+            </tr>
+            <tr>
+                <td><strong>Agent Framework (planned)</strong></td>
+                <td>LangGraph</td>
+                <td>State machine-based agent orchestration. Better control flow than pure chain-based frameworks. TypeScript support.</td>
+            </tr>
+            <tr>
+                <td><strong>Vector DB (planned)</strong></td>
+                <td>ChromaDB or Pinecone</td>
+                <td>Long-term memory for past analyses and financial reports. Enables "remember when we discussed COMI last month?"</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ -->
+<!-- 14. WHAT'S NEXT                                               -->
+<!-- ============================================================ -->
+<section id="whats-next">
+    <h2>14 — What's Next</h2>
+    <p class="section-desc">Where Equra AI is headed — and what we're most excited about building.</p>
+
+    <div class="card-grid">
+        <div class="card">
+            <h4><span class="icon purple">🔮</span> Real Multi-Agent Orchestration</h4>
+            <p>Moving from prompt-switching to actual agent orchestration with LangGraph. Each agent gets its own tools, memory scope, and failure handling. The Supervisor becomes a true state machine, not just a router.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon green">🧠</span> Memory That Learns</h4>
+            <p>A vector database that remembers every analysis, every recommendation, every user decision. Over time, the system gets better at understanding <em>you</em> — not just the market.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon blue">📋</span> Quarterly Earnings Pipeline</h4>
+            <p>Automated ingestion of EGX quarterly reports. The Context Agent will parse financial statements, track revenue trends across quarters, and flag significant changes before you even ask.</p>
+        </div>
+        <div class="card">
+            <h4><span class="icon amber">🔔</span> Proactive Alerts</h4>
+            <p>The system shouldn't wait for you to ask. If a stock in your portfolio drops 10% or a company you're watching releases earnings, you should know — instantly.</p>
+        </div>
+    </div>
+
+    <div style="margin-top:50px; padding:40px; background:linear-gradient(135deg, rgba(108,99,255,0.1), rgba(34,211,238,0.05)); border:1px solid var(--border); border-radius:16px; text-align:center;">
+        <h3 style="color:var(--text); font-size:1.5rem; margin-bottom:12px;">The Bigger Picture</h3>
+        <p style="color:var(--text-muted); max-width:700px; margin:0 auto 24px; font-size:1.1rem; line-height:1.8;">
+            Equra AI started with a simple question: <em>Why is reliable investment analysis only accessible to people who can afford Bloomberg terminals?</em>
+        </p>
+        <p style="color:var(--text-muted); max-width:700px; margin:0 auto 24px; font-size:1.05rem; line-height:1.8;">
+            The Egyptian stock market has over 3 million retail investors. Most of them make decisions based on Telegram group tips and outdated spreadsheets. We believe a team of AI agents — each specialized, each validated, each working in the context of <em>your</em> financial situation — can change that.
+        </p>
+        <p style="color:var(--text-muted); max-width:700px; margin:0 auto 30px; font-size:1.05rem; line-height:1.8;">
+            We're not building a chatbot that regurgitates financial data. We're building a system that <strong style="color:var(--text);">thinks about your money the way you would — if you had unlimited time, perfect data, and zero emotional bias.</strong>
+        </p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <span style="display:inline-block; padding:10px 24px; border-radius:8px; background:var(--accent); color:white; font-weight:600; font-size:0.95rem;">Follow the journey</span>
+            <span style="display:inline-block; padding:10px 24px; border-radius:8px; background:transparent; border:1px solid var(--border); color:var(--text-muted); font-weight:600; font-size:0.95rem;">Star on GitHub</span>
+        </div>
+    </div>
+
+    <div style="margin-top:40px; text-align:center; padding:20px;">
+        <p style="color:var(--text-muted); font-size:0.95rem; font-style:italic;">"The best time to invest was yesterday. The best time to build the tools that help people invest wisely is today."</p>
+    </div>
+</section>
+
+</div>
+
+<footer>
+    <p style="font-size:1rem; color:var(--text); margin-bottom:4px;">Equra AI</p>
+    <p>Built for the Egyptian Stock Market (EGX) — by investors, for investors.</p>
+    <p style="margin-top:12px; font-size:0.8rem;">If you're building something similar for your local market, we'd love to hear from you.</p>
+</footer>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#2d2f5e',
+            primaryTextColor: '#e4e6f0',
+            primaryBorderColor: '#6c63ff',
+            lineColor: '#60a5fa',
+            secondaryColor: '#1a2332',
+            tertiaryColor: '#0f2818',
+            noteBkgColor: '#232636',
+            noteTextColor: '#e4e6f0',
+            noteBorderColor: '#6c63ff',
+            actorBkg: '#1a1040',
+            actorBorder: '#6c63ff',
+            actorTextColor: '#e4e6f0',
+            signalColor: '#e4e6f0',
+            signalTextColor: '#e4e6f0',
+            labelBoxBkgColor: '#232636',
+            labelBoxBorderColor: '#6c63ff',
+            labelTextColor: '#e4e6f0',
+            loopTextColor: '#e4e6f0',
+            activationBorderColor: '#6c63ff',
+            activationBkgColor: '#2d2f5e',
+            sequenceNumberColor: '#e4e6f0',
+            sectionBkgColor: '#1a1d28',
+            altSectionBkgColor: '#232636',
+            taskBkgColor: '#6c63ff',
+            taskTextColor: '#e4e6f0',
+            taskBorderColor: '#8b84ff',
+            activeTaskBkgColor: '#34d399',
+            activeTaskBorderColor: '#34d399',
+            doneTaskBkgColor: '#3b3d6e',
+            critBkgColor: '#f87171',
+            todayLineColor: '#fbbf24',
+            gridColor: '#2e3148',
+            fontFamily: 'Segoe UI, system-ui, sans-serif',
+            fontSize: '14px'
+        },
+        sequence: {
+            diagramMarginX: 20,
+            diagramMarginY: 20,
+            actorMargin: 60,
+            width: 180,
+            height: 50,
+            boxMargin: 10,
+            boxTextMargin: 8,
+            noteMargin: 12,
+            messageMargin: 40,
+            mirrorActors: false,
+            useMaxWidth: true
+        },
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        },
+        gantt: {
+            useMaxWidth: true,
+            leftPadding: 150,
+            gridLineStartPadding: 35,
+            fontSize: 12,
+            numberSectionStyles: 4,
+            axisFormat: '%b %Y'
+        }
+    });
+</script>
+
+</body>
+</html>

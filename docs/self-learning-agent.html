@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Learning AI Agents: How AI Agents Learn from Mistakes</title>
+    <meta name="description" content="A technical walkthrough of how our AI agent remembers its mistakes, challenges its own logic, scores its predictions, and evolves its strategy weekly — using a real stock on the Egyptian Exchange.">
+    <meta name="keywords" content="AI agents, self-learning AI, agent memory, episodic memory, critic agent, stock analysis, EGX, feedback loop, strategy evolution">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #242424;
+            --text-muted: #6b6b6b;
+            --accent: #1a8917;
+            --border: #e6e6e6;
+            --code-bg: #f6f6f6;
+            --surface: #f9f9f9;
+            --highlight: #fff9db;
+            --dark-surface: #1a1d28;
+            --dark-text: #e4e6f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Georgia, 'Times New Roman', serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 18px;
+        }
+
+        .hero { max-width: 720px; margin: 0 auto; padding: 80px 24px 40px; }
+        .hero .tag { display: inline-block; font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 16px; }
+        .hero h1 { font-size: 2.6rem; font-weight: 700; line-height: 1.2; margin-bottom: 16px; letter-spacing: -0.5px; }
+        .hero .subtitle { font-size: 1.2rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 32px; }
+        .hero .meta { display: flex; align-items: center; gap: 12px; font-family: 'Inter', sans-serif; font-size: 0.85rem; color: var(--text-muted); }
+        .hero .avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #6c63ff, #34d399); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; }
+        .hero .meta-text strong { color: var(--text); display: block; }
+
+        article { max-width: 720px; margin: 0 auto; padding: 0 24px 80px; }
+        article p { margin-bottom: 20px; }
+        article h2 { font-size: 1.6rem; font-weight: 700; margin: 52px 0 14px; letter-spacing: -0.3px; }
+        article h3 { font-family: 'Inter', sans-serif; font-size: 1.05rem; font-weight: 700; margin: 32px 0 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        article ul { margin: 12px 0 20px; padding-left: 26px; }
+        article ul li { margin-bottom: 6px; line-height: 1.7; }
+
+        blockquote { border-left: 3px solid var(--text); padding: 2px 0 2px 24px; margin: 32px 0; font-style: italic; font-size: 1.2rem; line-height: 1.7; }
+
+        code { font-family: 'Source Code Pro', monospace; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
+        pre { background: var(--dark-surface); color: var(--dark-text); border-radius: 8px; padding: 20px 24px; overflow-x: auto; margin: 20px 0 28px; font-family: 'Source Code Pro', monospace; font-size: 0.83rem; line-height: 1.7; }
+        pre code { background: none; padding: 0; color: inherit; }
+
+        .callout { border-radius: 8px; padding: 18px 22px; margin: 24px 0; font-family: 'Inter', sans-serif; font-size: 0.92rem; line-height: 1.7; border-left: 4px solid #f59e0b; background: var(--highlight); }
+        .callout.blue  { background: #eff6ff; border-left-color: #3b82f6; }
+        .callout.green { background: #f0fdf4; border-left-color: #16a34a; }
+        .callout strong { color: var(--text); }
+
+        .data-table { width: 100%; border-collapse: collapse; margin: 16px 0 32px; font-family: 'Inter', sans-serif; font-size: 0.85rem; }
+        .data-table th { text-align: left; padding: 10px 14px; background: var(--surface); border-bottom: 2px solid var(--border); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+        .data-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+        .badge { display: inline-block; font-family: 'Inter', sans-serif; font-size: 0.72rem; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
+        .badge.green  { background: rgba(26,137,23,0.1);  color: #156d12; }
+        .badge.yellow { background: rgba(245,158,11,0.1); color: #b45309; }
+        .badge.red    { background: rgba(220,38,38,0.1);  color: #dc2626; }
+
+        .sep { text-align: center; margin: 44px 0; color: var(--text-muted); font-size: 1.5rem; letter-spacing: 12px; }
+
+        .diagram-container {
+            border-radius: 14px;
+            padding: 28px 20px; margin: 28px -60px 36px;
+            display: flex; flex-direction: column; align-items: center;
+            border: 1px solid #e2e8f0;
+        }
+        .diagram-container svg { width: 100%; height: auto; max-width: 780px; }
+        .diagram-container.white    { background: #ffffff; }
+        .diagram-container.warm     { background: #fffcf5; }
+        .diagram-container.cool     { background: #f8fafc; }
+        .diagram-container.mint     { background: #f0fdf8; }
+        .diagram-container.lavender { background: #faf5ff; }
+
+        @keyframes flow { to { stroke-dashoffset: -24; } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulseGlow { 0%,100% { filter: drop-shadow(0 0 4px rgba(99,102,241,.3)); } 50% { filter: drop-shadow(0 0 14px rgba(99,102,241,.7)); } }
+
+        .flow { stroke-dasharray: 10, 8; animation: flow 1s linear infinite; }
+        .f1,.f2,.f3,.f4,.f5,.f6,.f7,.f8,.f9,.f10,.f11,.f12 { opacity: 0; }
+        .in-view .f1  { animation: fadeUp .6s ease .1s forwards; }
+        .in-view .f2  { animation: fadeUp .6s ease .4s forwards; }
+        .in-view .f3  { animation: fadeUp .6s ease .7s forwards; }
+        .in-view .f4  { animation: fadeUp .6s ease 1s forwards; }
+        .in-view .f5  { animation: fadeUp .6s ease 1.3s forwards; }
+        .in-view .f6  { animation: fadeUp .6s ease 1.6s forwards; }
+        .in-view .f7  { animation: fadeUp .6s ease 1.9s forwards; }
+        .in-view .f8  { animation: fadeUp .6s ease 2.2s forwards; }
+        .in-view .f9  { animation: fadeUp .6s ease 2.5s forwards; }
+        .in-view .f10 { animation: fadeUp .6s ease 2.8s forwards; }
+        .in-view .f11 { animation: fadeUp .6s ease 3.1s forwards; }
+        .in-view .f12 { animation: fadeUp .6s ease 3.4s forwards; }
+
+        .output-box { border-radius: 8px; padding: 16px 20px; margin: 10px 0 16px; font-family: 'Source Code Pro', monospace; font-size: 0.82rem; line-height: 1.8; white-space: pre-wrap; }
+        .output-box.good  { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+        .output-box.bad   { background: #fff5f5; border: 1px solid #fecaca; color: #7f1d1d; }
+        .output-box.neutral { background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; }
+        .output-box .label { font-family: 'Inter', sans-serif; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; opacity: 0.55; }
+
+        @media (max-width: 860px) {
+            .diagram-container { margin-left: 0; margin-right: 0; }
+        }
+        @media (max-width: 680px) {
+            .hero h1 { font-size: 1.9rem; }
+            .hero { padding: 48px 20px 28px; }
+            article { padding: 0 20px 60px; }
+            body { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <span class="tag">AI Agents  ·  Self-Learning  ·  System Design</span>
+    <h1>Self-Learning AI Agents: How AI Agents Learn from Mistakes</h1>
+    <p class="subtitle">Most AI agents forget everything between runs. Ours remembers its mistakes, challenges its own logic, scores its predictions against reality, and rewrites its own strategy every week. Here's exactly how it works.</p>
+    <div class="meta">
+        <div class="avatar">M</div>
+        <div class="meta-text">
+            <strong>Mohamed Mohab</strong>
+            10 min read · Apr 2026
+        </div>
+    </div>
+</div>
+
+<article>
+
+<p>We built an AI agent that analyzes stocks on the Egyptian Exchange. It gives you a recommendation — Buy, Hold, Sell — with a fair value, confidence score, and reasoning.</p>
+
+<p>The first version was stateless. Every run started cold. It recommended Buy on CIB at 62 EGP, lost 8%, and the next time it saw the same setup it said Buy again. Same reasoning. Same mistake. It didn't know it was wrong because it couldn't remember being wrong.</p>
+
+<p>So we rebuilt it with a self-learning loop. Not "self-learning" in the marketing sense — not fine-tuning, not reinforcement learning. A concrete, auditable system where every recommendation is logged, scored against reality, and fed back into the next analysis.</p>
+
+<p>This article walks through exactly how it works, using one real stock — Commercial International Bank (COMI) on the EGX — as the running example.</p>
+
+<div class="sep">. . .</div>
+
+<h2>The Loop</h2>
+
+<p>The self-learning loop has six stages. Each one feeds the next.</p>
+
+<!-- DIAGRAM 1: The Full Loop — S-curve flow -->
+<div class="diagram-container cool">
+<svg viewBox="0 0 820 560">
+  <defs>
+    <filter id="s1"><feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0f172a" flood-opacity=".08"/></filter>
+    <linearGradient id="ln" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient>
+    <linearGradient id="lnG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#6ee7b7"/></linearGradient>
+  </defs>
+
+  <!-- S-CURVE PATH -->
+  <g class="f1">
+    <path d="M410,55 C650,55 760,80 760,170 C760,270 60,270 60,360 C60,450 760,450 760,500"
+          fill="none" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round"/>
+    <path d="M410,55 C650,55 760,80 760,170 C760,270 60,270 60,360 C60,450 760,450 760,500"
+          fill="none" stroke="url(#ln)" stroke-width="3" stroke-linecap="round"
+          stroke-dasharray="8,6" class="flow" opacity=".5"/>
+  </g>
+
+  <!-- NODE 1: Remember — top center -->
+  <g class="f2">
+    <rect x="250" y="22" width="270" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="250" y="22" width="270" height="68" rx="34" fill="none" stroke="#10b981" stroke-width="2"/>
+    <circle cx="290" cy="56" r="18" fill="#d1fae5"/>
+    <text x="290" y="62" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="17" font-weight="900">1</text>
+    <text x="332" y="50" fill="#065f46" font-family="Inter,sans-serif" font-size="16" font-weight="800">Remember</text>
+    <text x="332" y="70" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Past decisions + lessons + strategy</text>
+  </g>
+
+  <!-- NODE 2: Analyze — right -->
+  <g class="f3">
+    <rect x="540" y="120" width="260" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="540" y="120" width="260" height="68" rx="34" fill="none" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="580" cy="154" r="18" fill="#e0e7ff"/>
+    <text x="580" y="160" text-anchor="middle" fill="#4f46e5" font-family="Inter,sans-serif" font-size="17" font-weight="900">2</text>
+    <text x="626" y="148" fill="#312e81" font-family="Inter,sans-serif" font-size="16" font-weight="800">Analyze</text>
+    <text x="626" y="168" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Gemini AI + injected context</text>
+  </g>
+
+  <!-- NODE 3: Challenge — center -->
+  <g class="f4">
+    <rect x="280" y="230" width="260" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="280" y="230" width="260" height="68" rx="34" fill="none" stroke="#a855f7" stroke-width="2"/>
+    <circle cx="320" cy="264" r="18" fill="#f3e8ff"/>
+    <text x="320" y="270" text-anchor="middle" fill="#7c3aed" font-family="Inter,sans-serif" font-size="17" font-weight="900">3</text>
+    <text x="368" y="258" fill="#581c87" font-family="Inter,sans-serif" font-size="16" font-weight="800">Challenge</text>
+    <text x="368" y="278" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Critic finds the strongest counter</text>
+  </g>
+
+  <!-- NODE 4: Log — left -->
+  <g class="f5">
+    <rect x="30" y="330" width="230" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="30" y="330" width="230" height="68" rx="34" fill="none" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="70" cy="364" r="18" fill="#f1f5f9"/>
+    <text x="70" y="370" text-anchor="middle" fill="#475569" font-family="Inter,sans-serif" font-size="17" font-weight="900">4</text>
+    <text x="118" y="358" fill="#1e293b" font-family="Inter,sans-serif" font-size="16" font-weight="800">Log</text>
+    <text x="118" y="378" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Save to SQLite + critic</text>
+  </g>
+
+  <!-- NODE 5: Score — center -->
+  <g class="f6">
+    <rect x="300" y="410" width="260" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="300" y="410" width="260" height="68" rx="34" fill="none" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="340" cy="444" r="18" fill="#fef3c7"/>
+    <text x="340" y="450" text-anchor="middle" fill="#b45309" font-family="Inter,sans-serif" font-size="17" font-weight="900">5</text>
+    <text x="388" y="438" fill="#78350f" font-family="Inter,sans-serif" font-size="16" font-weight="800">Score</text>
+    <text x="388" y="458" fill="#64748b" font-family="Inter,sans-serif" font-size="12">5-day · 30-day · 90-day vs reality</text>
+  </g>
+
+  <!-- NODE 6: Evolve — right -->
+  <g class="f7">
+    <rect x="540" y="488" width="260" height="68" rx="34" fill="#ffffff" filter="url(#s1)"/>
+    <rect x="540" y="488" width="260" height="68" rx="34" fill="none" stroke="#ec4899" stroke-width="2"/>
+    <circle cx="580" cy="522" r="18" fill="#fce7f3"/>
+    <text x="580" y="528" text-anchor="middle" fill="#be185d" font-family="Inter,sans-serif" font-size="17" font-weight="900">6</text>
+    <text x="628" y="516" fill="#831843" font-family="Inter,sans-serif" font-size="16" font-weight="800">Evolve</text>
+    <text x="628" y="536" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Meta-Agent rewrites strategy weekly</text>
+  </g>
+
+  <!-- LOOP BACK -->
+  <g class="f8">
+    <path d="M540,522 C250,530 20,480 20,364 C20,180 200,55 250,55"
+          fill="none" stroke="url(#lnG)" stroke-width="2.5" stroke-dasharray="10,6" class="flow"/>
+    <polygon points="248,48 258,55 248,62" fill="#10b981" opacity=".7"/>
+    <rect x="30" y="440" width="86" height="26" rx="13" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+    <text x="73" y="457" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="11" font-weight="700">LOOP BACK</text>
+  </g>
+</svg>
+</div>
+
+<p>Let's walk through each stage with a real example.</p>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 1: Remember</h2>
+
+<p>Before every analysis, the agent queries its memory. Not a cache — a persistent SQLite database that stores every recommendation it has ever made, every lesson it has learned, and the current strategy it operates under.</p>
+
+<p>Three things happen before the LLM sees a single token:</p>
+
+<p><strong>1. Check past decisions for this stock.</strong> "I recommended Buy on COMI 12 days ago at 82.5 EGP. It's now 85.1 EGP (+3.1%). That call is tracking well."</p>
+
+<p><strong>2. Retrieve similar episodes.</strong> The agent searches a vector database for past situations that look like the current one — not by stock name, but by context. "Last time I saw a bank stock with P/E below 7 during a CBE rate cut cycle and volume 30% below average, momentum signals were wrong by 8%." That episode gets injected into the prompt.</p>
+
+<p><strong>3. Load the active strategy.</strong> The strategy is a versioned document that the Meta-Agent rewrites weekly. It contains rules like: "Discount RSI crossovers when volume is below 50% of the 30-day average." The analysis model reads this strategy before generating its recommendation.</p>
+
+<div class="callout blue">
+    <strong>Why this matters:</strong> Without memory, every run starts from zero. The agent makes the same mistake twice because it doesn't know it was wrong. Episodic memory turns individual failures into reusable lessons. According to <a href="https://www.philschmid.de/memory-in-agents">Phil Schmid's research on agent memory</a>, "the consequences of a flawed memory strategy only surface over time" — which is why most teams skip it and regret it later.
+</div>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 2: Analyze</h2>
+
+<p>The analysis runs through Gemini with three layers of context injected into the prompt:</p>
+
+<!-- DIAGRAM 2: Prompt Assembly — converging inputs -->
+<div class="diagram-container warm">
+<svg viewBox="0 0 780 380">
+  <defs>
+    <filter id="s2"><feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0f172a" flood-opacity=".08"/></filter>
+  </defs>
+  <!-- Three source pills at top -->
+  <g class="f1">
+    <rect x="20" y="20" width="220" height="62" rx="31" fill="#ffffff" filter="url(#s2)"/>
+    <rect x="20" y="20" width="220" height="62" rx="31" fill="none" stroke="#10b981" stroke-width="2"/>
+    <circle cx="54" cy="51" r="16" fill="#d1fae5"/>
+    <text x="54" y="56" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="14" font-weight="900">S</text>
+    <text x="86" y="45" fill="#065f46" font-family="Inter,sans-serif" font-size="14" font-weight="800">Strategy v4</text>
+    <text x="86" y="64" fill="#64748b" font-family="Inter,sans-serif" font-size="11">"Discount RSI when vol &lt; 50%"</text>
+  </g>
+  <g class="f2">
+    <rect x="280" y="20" width="220" height="62" rx="31" fill="#ffffff" filter="url(#s2)"/>
+    <rect x="280" y="20" width="220" height="62" rx="31" fill="none" stroke="#a855f7" stroke-width="2"/>
+    <circle cx="314" cy="51" r="16" fill="#f3e8ff"/>
+    <text x="314" y="56" text-anchor="middle" fill="#7c3aed" font-family="Inter,sans-serif" font-size="14" font-weight="900">E</text>
+    <text x="348" y="45" fill="#581c87" font-family="Inter,sans-serif" font-size="14" font-weight="800">Episodes</text>
+    <text x="348" y="64" fill="#64748b" font-family="Inter,sans-serif" font-size="11">"Low-vol trap: -8% last time"</text>
+  </g>
+  <g class="f3">
+    <rect x="540" y="20" width="220" height="62" rx="31" fill="#ffffff" filter="url(#s2)"/>
+    <rect x="540" y="20" width="220" height="62" rx="31" fill="none" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="574" cy="51" r="16" fill="#dbeafe"/>
+    <text x="574" y="56" text-anchor="middle" fill="#2563eb" font-family="Inter,sans-serif" font-size="14" font-weight="900">D</text>
+    <text x="608" y="45" fill="#1e3a8a" font-family="Inter,sans-serif" font-size="14" font-weight="800">Stock Data</text>
+    <text x="608" y="64" fill="#64748b" font-family="Inter,sans-serif" font-size="11">P/E 6.7 · EPS 18.4 · 122 EGP</text>
+  </g>
+  <!-- Converging bezier lines -->
+  <g class="f4">
+    <path d="M130,82 C130,120 390,120 390,150" fill="none" stroke="#10b981" stroke-width="2" opacity=".4"/>
+    <path d="M390,82 C390,110 390,120 390,150" fill="none" stroke="#a855f7" stroke-width="2" opacity=".4"/>
+    <path d="M650,82 C650,120 390,120 390,150" fill="none" stroke="#3b82f6" stroke-width="2" opacity=".4"/>
+    <!-- Gemini node — larger, prominent -->
+    <rect x="260" y="150" width="260" height="68" rx="34" fill="#1e1b4b" filter="url(#s2)"/>
+    <circle cx="300" cy="184" r="18" fill="#312e81"/>
+    <text x="300" y="190" text-anchor="middle" fill="#a5b4fc" font-family="Inter,sans-serif" font-size="16" font-weight="900">AI</text>
+    <text x="348" y="178" fill="#e0e7ff" font-family="Inter,sans-serif" font-size="16" font-weight="800">Gemini 2.5</text>
+    <text x="348" y="198" fill="#818cf8" font-family="Inter,sans-serif" font-size="12">temp 0.2 · 8192 tokens</text>
+  </g>
+  <!-- Output -->
+  <g class="f5">
+    <path d="M390,218 C390,248 390,258 390,270" fill="none" stroke="#10b981" stroke-width="2.5" opacity=".5"/>
+    <polygon points="384,268 390,280 396,268" fill="#10b981" opacity=".6"/>
+    <rect x="200" y="280" width="380" height="72" rx="36" fill="#ffffff" filter="url(#s2)"/>
+    <rect x="200" y="280" width="380" height="72" rx="36" fill="none" stroke="#10b981" stroke-width="2"/>
+    <circle cx="240" cy="316" r="18" fill="#d1fae5"/>
+    <text x="240" y="322" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="16" font-weight="900">✓</text>
+    <text x="288" y="310" fill="#065f46" font-family="Inter,sans-serif" font-size="15" font-weight="800">Draft Recommendation</text>
+    <text x="288" y="330" fill="#64748b" font-family="Inter,sans-serif" font-size="12">Buy COMI · Confidence: High · Fair Value: 129 EGP</text>
+  </g>
+</svg>
+</div>
+
+<p>The model sees the strategy, the lessons from similar past situations, and the raw stock data — all before generating a single word. This is not a generic prompt. It's a prompt that contains the agent's accumulated experience.</p>
+
+<p>The output is a structured JSON: recommendation, confidence, fair value estimate, reasoning steps, risk signals, and price targets.</p>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 3: Challenge</h2>
+
+<p>Before the recommendation ships, a second agent attacks it. The Critic Agent's only job is to find the single strongest reason the recommendation is wrong.</p>
+
+<p>This is not a balanced counterpoint. It's adversarial. If the Analysis Agent says Buy, the Critic is forced to argue Sell first — then judge whether its own counter-argument is strong enough to downgrade confidence.</p>
+
+<div class="output-box neutral"><div class="label">Critic Agent Output — COMI Buy Recommendation</div>{
+  "counterRecommendation": "Sell",
+  "weakness": "The analysis overlooks the impact of recent EGP
+    devaluations on COMI's asset quality and real earnings.
+    The stated 'low P/E' may be misleading due to stale FRA
+    data and unaddressed credit risk from high NPL formation
+    in a sustained high-interest-rate environment.",
+  "severity": "high",
+  "counterScenario": "A 30-40% downward revision of future EPS
+    estimates driven by rising non-performing loans, pushing
+    the forward P/E significantly higher and eliminating the
+    perceived undervaluation.",
+  "blockingIssues": [
+    "Stale earnings risk — FRA disclosure lag",
+    "Unaddressed asset quality deterioration",
+    "EGP devaluation impact on real returns"
+  ]
+}</div>
+
+<p>The Critic found a high-severity issue: the earnings data might be stale due to FRA filing lag, and the P/E ratio could be misleading. This is an EGX-specific risk that a generic AI would miss.</p>
+
+<p>Because severity is "high," the confidence gets automatically discounted. The Buy recommendation still ships — but with reduced confidence and the Critic's objections visible in the output.</p>
+
+<div class="callout">
+    <strong>Research backs this up.</strong> An <a href="https://arxiv.org/html/2602.13213">adversarial self-critique study in insurance underwriting</a> found that adding a Critic Agent improved decision accuracy from 92% to 96% and reduced hallucinations from 11.3% to 3.8%. The trade-off is ~33% latency overhead — worth it for financial recommendations.
+</div>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 4: Log</h2>
+
+<p>Every recommendation is written to a SQLite database. Not just the recommendation — everything:</p>
+
+<table class="data-table">
+    <thead><tr><th>Field</th><th>Example</th><th>Why It's Stored</th></tr></thead>
+    <tbody>
+        <tr><td><strong>symbol</strong></td><td>COMI</td><td>What stock</td></tr>
+        <tr><td><strong>recommendation</strong></td><td>Buy</td><td>What we said</td></tr>
+        <tr><td><strong>confidence</strong></td><td>Medium (was High, discounted by Critic)</td><td>How sure we were</td></tr>
+        <tr><td><strong>price_at_rec</strong></td><td>122 EGP</td><td>For computing return later</td></tr>
+        <tr><td><strong>fair_value</strong></td><td>129 EGP</td><td>What we thought it was worth</td></tr>
+        <tr><td><strong>reasoning</strong></td><td>"P/E 6.7 below sector avg..."</td><td>For the Meta-Agent to analyze patterns</td></tr>
+        <tr><td><strong>critic_severity</strong></td><td>high</td><td>How hard the Critic pushed back</td></tr>
+        <tr><td><strong>critic_weakness</strong></td><td>"FRA disclosure lag..."</td><td>What the Critic flagged</td></tr>
+        <tr><td><strong>inputs_hash</strong></td><td>a3f8c2...</td><td>Detect if same setup repeats</td></tr>
+    </tbody>
+</table>
+
+<p>This is fire-and-forget — the write happens asynchronously after the response is sent to the user. It never blocks the analysis. But it means every recommendation has a paper trail.</p>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 5: Score</h2>
+
+<p>Every day at 15:30 Cairo time (after EGX market close), a cron job runs. It looks at every recommendation older than 5 trading days that hasn't been scored yet, fetches the current price, and computes the return.</p>
+
+<div class="output-box good"><div class="label">5-Day Scoring — COMI</div>Decision #47: Buy COMI at 122 EGP on Apr 8
+Current price: 126.5 EGP (Apr 15)
+Return: +3.7%
+Direction: Correct (Buy + positive return)
+Verdict: ✓ Good call</div>
+
+<div class="output-box bad"><div class="label">5-Day Scoring — HRHO</div>Decision #43: Buy HRHO at 14.2 EGP on Apr 3
+Current price: 12.8 EGP (Apr 10)
+Return: -9.9%
+Direction: WRONG (Buy + negative return > 5%)
+Verdict: ✗ Bad call — auto-generating episode</div>
+
+<p>Three scoring windows run at different intervals:</p>
+
+<table class="data-table">
+    <thead><tr><th>Window</th><th>Schedule</th><th>What It Tells You</th></tr></thead>
+    <tbody>
+        <tr><td><strong>5-day</strong></td><td>Daily 15:30 Cairo</td><td>Was I immediately right or wrong?</td></tr>
+        <tr><td><strong>30-day</strong></td><td>Every Friday 16:00</td><td>Did my thesis play out?</td></tr>
+        <tr><td><strong>90-day</strong></td><td>Last Friday of month</td><td>Was the big picture right?</td></tr>
+    </tbody>
+</table>
+
+<p>When a bad outcome is detected (>5% wrong direction), the system automatically creates an episode — a lesson learned — and stores it in both SQLite and a vector database for future retrieval.</p>
+
+<p>The episode for HRHO would be: <em>"5d outcome: -9.9% — recommendation was Buy but price dropped. Volume was 30% below 30-day average at time of recommendation. Review thesis assumptions for low-volume momentum setups."</em></p>
+
+<p>Next time the agent sees a similar low-volume setup, that episode gets injected into the prompt. The agent literally reads its own past mistake before making the same type of call.</p>
+
+<div class="sep">. . .</div>
+
+<h2>Stage 6: Evolve</h2>
+
+<p>Every Sunday at 17:00 Cairo time, the Meta-Agent runs. It's a separate AI call (Gemini Flash, not the primary analysis model) that reviews the last 30 decisions and their outcomes.</p>
+
+<!-- DIAGRAM 3: Strategy Evolution — horizontal flow + diff -->
+<div class="diagram-container lavender">
+<svg viewBox="0 0 780 340">
+  <defs>
+    <filter id="s3"><feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0f172a" flood-opacity=".08"/></filter>
+  </defs>
+  <!-- Horizontal flow: Decisions → Meta-Agent → Strategy v5 -->
+  <g class="f1">
+    <rect x="20" y="25" width="210" height="68" rx="34" fill="#ffffff" filter="url(#s3)"/>
+    <rect x="20" y="25" width="210" height="68" rx="34" fill="none" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="58" cy="59" r="18" fill="#f1f5f9"/>
+    <text x="58" y="64" text-anchor="middle" fill="#475569" font-family="Inter,sans-serif" font-size="14" font-weight="900">30</text>
+    <text x="96" y="53" fill="#1e293b" font-family="Inter,sans-serif" font-size="14" font-weight="800">Scored Decisions</text>
+    <text x="96" y="71" fill="#64748b" font-family="Inter,sans-serif" font-size="11">+ 10 random historical</text>
+  </g>
+  <g class="f2">
+    <path d="M230,59 C260,59 270,59 285,59" fill="none" stroke="#a855f7" stroke-width="2.5" opacity=".5"/>
+    <polygon points="283,53 295,59 283,65" fill="#a855f7" opacity=".6"/>
+    <rect x="295" y="25" width="210" height="68" rx="34" fill="#ffffff" filter="url(#s3)"/>
+    <rect x="295" y="25" width="210" height="68" rx="34" fill="none" stroke="#a855f7" stroke-width="2"/>
+    <circle cx="333" cy="59" r="18" fill="#f3e8ff"/>
+    <text x="333" y="64" text-anchor="middle" fill="#7c3aed" font-family="Inter,sans-serif" font-size="14" font-weight="900">M</text>
+    <text x="371" y="53" fill="#581c87" font-family="Inter,sans-serif" font-size="14" font-weight="800">Meta-Agent</text>
+    <text x="371" y="71" fill="#64748b" font-family="Inter,sans-serif" font-size="11">Gemini Flash · weekly</text>
+  </g>
+  <g class="f3">
+    <path d="M505,59 C535,59 545,59 560,59" fill="none" stroke="#10b981" stroke-width="2.5" opacity=".5"/>
+    <polygon points="558,53 570,59 558,65" fill="#10b981" opacity=".6"/>
+    <rect x="570" y="18" width="190" height="82" rx="34" fill="#ffffff" filter="url(#s3)"/>
+    <rect x="570" y="18" width="190" height="82" rx="34" fill="none" stroke="#10b981" stroke-width="2"/>
+    <circle cx="608" cy="52" r="18" fill="#d1fae5"/>
+    <text x="608" y="57" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="14" font-weight="900">v5</text>
+    <text x="646" y="46" fill="#065f46" font-family="Inter,sans-serif" font-size="14" font-weight="800">Strategy v5</text>
+    <text x="646" y="64" fill="#64748b" font-family="Inter,sans-serif" font-size="10">Discount RSI on low vol</text>
+    <text x="646" y="78" fill="#64748b" font-family="Inter,sans-serif" font-size="10">Weight macro 2x for banks</text>
+  </g>
+  <!-- Diff box below — full width -->
+  <g class="f4">
+    <rect x="60" y="140" width="660" height="170" rx="18" fill="#fafafa" filter="url(#s3)"/>
+    <rect x="60" y="140" width="660" height="170" rx="18" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="60" y="140" width="660" height="36" rx="18" fill="#f1f5f9"/>
+    <rect x="60" y="158" width="660" height="1" fill="#e2e8f0"/>
+    <text x="390" y="163" text-anchor="middle" fill="#334155" font-family="Inter,sans-serif" font-size="13" font-weight="800">/api/strategy-diff?v1=4&amp;v2=5</text>
+    <text x="90" y="200" fill="#dc2626" font-family="Source Code Pro,monospace" font-size="13" font-weight="600">−  Weight all signals equally</text>
+    <text x="90" y="228" fill="#16a34a" font-family="Source Code Pro,monospace" font-size="13" font-weight="600">+  Discount RSI crossovers when volume &lt; 50% of 30d avg</text>
+    <text x="90" y="256" fill="#16a34a" font-family="Source Code Pro,monospace" font-size="13" font-weight="600">+  Increase macro weight 2x for bank stocks</text>
+    <text x="90" y="284" fill="#6366f1" font-family="Source Code Pro,monospace" font-size="12" font-style="italic">   ↳ Learning: decisions #43, #44 failed on low volume momentum</text>
+    <text x="90" y="302" fill="#6366f1" font-family="Source Code Pro,monospace" font-size="12" font-style="italic">   ↳ Replaces v4 as active strategy. Rollback available.</text>
+  </g>
+</svg>
+</div>
+
+<p>The Meta-Agent doesn't just log what went wrong. It rewrites the strategy. The new version replaces the old one, and every subsequent analysis reads the updated rules.</p>
+
+<p>Here's what happens inside the Meta-Agent every Sunday at 17:00 Cairo time:</p>
+
+<!-- DIAGRAM 4: Meta-Agent Internal Process — vertical flow -->
+<div class="diagram-container mint">
+<svg viewBox="0 0 700 520">
+  <defs>
+    <filter id="s4"><feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0f172a" flood-opacity=".08"/></filter>
+  </defs>
+  <!-- Step 1: Pull scored decisions -->
+  <g class="f1">
+    <rect x="200" y="15" width="300" height="62" rx="31" fill="#ffffff" filter="url(#s4)"/>
+    <rect x="200" y="15" width="300" height="62" rx="31" fill="none" stroke="#94a3b8" stroke-width="2"/>
+    <circle cx="238" cy="46" r="16" fill="#f1f5f9"/>
+    <text x="238" y="51" text-anchor="middle" fill="#475569" font-family="Inter,sans-serif" font-size="13" font-weight="900">1</text>
+    <text x="272" y="40" fill="#1e293b" font-family="Inter,sans-serif" font-size="14" font-weight="800">Pull scored decisions</text>
+    <text x="272" y="58" fill="#64748b" font-family="Inter,sans-serif" font-size="11">WHERE outcome_5d IS NOT NULL</text>
+  </g>
+  <!-- Arrow down -->
+  <g class="f2">
+    <path d="M350,77 C350,90 350,96 350,105" fill="none" stroke="#a855f7" stroke-width="2" opacity=".4"/>
+    <polygon points="345,103 350,114 355,103" fill="#a855f7" opacity=".5"/>
+    <!-- Step 2: Filter -->
+    <rect x="170" y="114" width="360" height="62" rx="31" fill="#ffffff" filter="url(#s4)"/>
+    <rect x="170" y="114" width="360" height="62" rx="31" fill="none" stroke="#ef4444" stroke-width="2"/>
+    <circle cx="208" cy="145" r="16" fill="#fee2e2"/>
+    <text x="208" y="150" text-anchor="middle" fill="#dc2626" font-family="Inter,sans-serif" font-size="13" font-weight="900">2</text>
+    <text x="250" y="139" fill="#991b1b" font-family="Inter,sans-serif" font-size="14" font-weight="800">Filter: THESIS_ERROR only</text>
+    <text x="250" y="157" fill="#64748b" font-family="Inter,sans-serif" font-size="11">Skip macro shocks, stale data, timing issues</text>
+  </g>
+  <!-- Arrow down to split -->
+  <g class="f3">
+    <path d="M350,176 C350,195 350,200 350,210" fill="none" stroke="#a855f7" stroke-width="2" opacity=".4"/>
+    <!-- Two sample pills side by side -->
+    <rect x="60" y="210" width="250" height="56" rx="28" fill="#ffffff" filter="url(#s4)"/>
+    <rect x="60" y="210" width="250" height="56" rx="28" fill="none" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="96" cy="238" r="14" fill="#e0e7ff"/>
+    <text x="96" y="243" text-anchor="middle" fill="#4f46e5" font-family="Inter,sans-serif" font-size="12" font-weight="900">30</text>
+    <text x="126" y="232" fill="#312e81" font-family="Inter,sans-serif" font-size="13" font-weight="800">Most recent</text>
+    <text x="126" y="250" fill="#64748b" font-family="Inter,sans-serif" font-size="10">Sorted by date, latest first</text>
+
+    <text x="350" y="243" text-anchor="middle" fill="#94a3b8" font-family="Inter,sans-serif" font-size="18" font-weight="700">+</text>
+
+    <rect x="390" y="210" width="250" height="56" rx="28" fill="#ffffff" filter="url(#s4)"/>
+    <rect x="390" y="210" width="250" height="56" rx="28" fill="none" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="426" cy="238" r="14" fill="#fef3c7"/>
+    <text x="426" y="243" text-anchor="middle" fill="#b45309" font-family="Inter,sans-serif" font-size="12" font-weight="900">10</text>
+    <text x="458" y="232" fill="#78350f" font-family="Inter,sans-serif" font-size="13" font-weight="800">Random historical</text>
+    <text x="458" y="250" fill="#64748b" font-family="Inter,sans-serif" font-size="10">Prevents overfitting</text>
+  </g>
+  <!-- Converge to Gemini -->
+  <g class="f4">
+    <path d="M185,266 C185,290 350,290 350,310" fill="none" stroke="#6366f1" stroke-width="2" opacity=".3"/>
+    <path d="M515,266 C515,290 350,290 350,310" fill="none" stroke="#f59e0b" stroke-width="2" opacity=".3"/>
+    <polygon points="345,308 350,319 355,308" fill="#a855f7" opacity=".5"/>
+    <!-- Gemini Flash -->
+    <rect x="180" y="319" width="340" height="62" rx="31" fill="#1e1b4b" filter="url(#s4)"/>
+    <circle cx="218" cy="350" r="16" fill="#312e81"/>
+    <text x="218" y="355" text-anchor="middle" fill="#a5b4fc" font-family="Inter,sans-serif" font-size="13" font-weight="900">AI</text>
+    <text x="258" y="344" fill="#e0e7ff" font-family="Inter,sans-serif" font-size="14" font-weight="800">Gemini Flash analyzes</text>
+    <text x="258" y="362" fill="#818cf8" font-family="Inter,sans-serif" font-size="11">"Low-vol momentum: 3/4 wrong"</text>
+  </g>
+  <!-- Arrow to output -->
+  <g class="f5">
+    <path d="M350,381 C350,400 350,408 350,418" fill="none" stroke="#10b981" stroke-width="2.5" opacity=".5"/>
+    <polygon points="345,416 350,428 355,416" fill="#10b981" opacity=".6"/>
+    <rect x="150" y="428" width="400" height="72" rx="36" fill="#ffffff" filter="url(#s4)"/>
+    <rect x="150" y="428" width="400" height="72" rx="36" fill="none" stroke="#10b981" stroke-width="2"/>
+    <circle cx="190" cy="464" r="18" fill="#d1fae5"/>
+    <text x="190" y="469" text-anchor="middle" fill="#059669" font-family="Inter,sans-serif" font-size="14" font-weight="900">v5</text>
+    <text x="236" y="458" fill="#065f46" font-family="Inter,sans-serif" font-size="14" font-weight="800">Write Strategy v5 → save</text>
+    <text x="236" y="476" fill="#64748b" font-family="Inter,sans-serif" font-size="11">Deactivate v4 · All future analyses read v5</text>
+  </g>
+</svg>
+</div>
+
+<p>The strategy is versioned. You can diff v4 against v5 and see exactly what changed and why. You can roll it back if the new version performs worse. There's an audit trail for every evolution.</p>
+
+<div class="callout green">
+    <strong>This is not fine-tuning.</strong> The model weights never change. What changes is the strategy prompt — the set of rules the model follows. This is cheaper, faster, and fully auditable. You can see what changed, why it changed, and undo it in one API call.
+</div>
+
+<div class="sep">. . .</div>
+
+<h2>What This Looks Like After 4 Weeks</h2>
+
+<p>After a month of running, the system has:</p>
+
+<table class="data-table">
+    <thead><tr><th>Metric</th><th>Week 1</th><th>Week 4</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Total decisions</strong></td><td>12</td><td>47</td></tr>
+        <tr><td><strong>5-day accuracy</strong></td><td>58%</td><td>68%</td></tr>
+        <tr><td><strong>30-day accuracy</strong></td><td>N/A</td><td>74%</td></tr>
+        <tr><td><strong>Strategy version</strong></td><td>v1 (seed)</td><td>v4</td></tr>
+        <tr><td><strong>Episodes stored</strong></td><td>0</td><td>8</td></tr>
+        <tr><td><strong>Critic overrides</strong></td><td>2</td><td>7</td></tr>
+    </tbody>
+</table>
+
+<p>The 5-day accuracy improving from 58% to 68% is not because the model got smarter. It's the same model. What changed:</p>
+
+<ul>
+    <li>The strategy was rewritten 3 times based on actual outcomes</li>
+    <li>8 episodic lessons were created from bad calls and injected into future prompts</li>
+    <li>The Critic caught 7 high-severity issues that would have shipped as high-confidence calls</li>
+</ul>
+
+<p>The 30-day accuracy (74%) being higher than 5-day (68%) tells us something specific: the agent's short-term timing is often off, but its thesis is usually correct. The Meta-Agent can learn from that pattern — "stop using momentum signals for entry timing, focus on fundamental triggers instead."</p>
+
+<div class="sep">. . .</div>
+
+<h2>The Poison Guard</h2>
+
+<p>The hardest part of self-learning isn't building the loop. It's preventing the loop from learning the wrong lessons.</p>
+
+<p>Example: the agent recommends Buy on COMI based on strong P/E analysis. A week later, CBE unexpectedly raises rates. COMI drops 12%. The 5-day scoring marks it as a bad call.</p>
+
+<p>But was it? The thesis was correct — the P/E was genuinely undervalued. The macro shock was unpredictable. If the Meta-Agent learns "avoid P/E-based bank analysis," it's learning the wrong lesson.</p>
+
+<p>This is why every decision has an <code>invalidation_reason</code> field:</p>
+
+<table class="data-table">
+    <thead><tr><th>Reason</th><th>Feeds Learning?</th><th>Example</th></tr></thead>
+    <tbody>
+        <tr><td><code>THESIS_ERROR</code></td><td><span class="badge green">Yes</span></td><td>Analysis was wrong — bad math, missed data</td></tr>
+        <tr><td><code>MACRO_SHOCK</code></td><td><span class="badge red">No</span></td><td>CBE rate hike, political crisis, FX crash</td></tr>
+        <tr><td><code>DATA_STALE</code></td><td><span class="badge red">No</span></td><td>Earnings were 60 days old (FRA lag)</td></tr>
+        <tr><td><code>TIMING</code></td><td><span class="badge red">No</span></td><td>Thesis was right, entry timing was wrong</td></tr>
+    </tbody>
+</table>
+
+<p>Only <code>THESIS_ERROR</code> decisions feed the Meta-Agent. Everything else is logged but excluded from the learning loop. The agent learns from its own mistakes, not from market chaos.</p>
+
+<div class="sep">. . .</div>
+
+<h2>What We're Building</h2>
+
+<blockquote>The agent doesn't get smarter. The prompt gets smarter. The strategy accumulates experience. The episodes accumulate lessons. The scoring accumulates accountability. Together, they create a system that improves without changing a single model weight.</blockquote>
+
+<div class="callout green">
+    <strong>This is what we're building at Equra AI.</strong> A stock analysis agent for the Egyptian Exchange with real memory, a Critic that attacks every recommendation, and a feedback loop that evolves the strategy weekly. Egyptian retail investors don't have a Bloomberg terminal. We're building them something better.
+</div>
+
+</article>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('in-view');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.diagram-container').forEach(d => observer.observe(d));
+</script>
+
+</body>
+</html>

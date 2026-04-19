@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equra AI — Technical Breakdown</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d28;
+            --surface2: #232636;
+            --border: #2e3148;
+            --text: #e4e6f0;
+            --text-muted: #8b8fa8;
+            --accent: #6c63ff;
+            --accent-light: #a89cff;
+            --green: #22c55e;
+            --cyan: #06b6d4;
+            --yellow: #eab308;
+            --red: #ef4444;
+            --orange: #f97316;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+        }
+        .hero {
+            background: linear-gradient(135deg, #0f1117 0%, #1a1038 50%, #0f1117 100%);
+            padding: 80px 40px 60px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a89cff, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 30px 40px;
+        }
+        .toc h2 { font-size: 0.85rem; color: var(--accent-light); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1.5px; }
+        .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+        .toc a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: block;
+        }
+        .toc a:hover { background: var(--surface2); color: var(--text); }
+        .toc a .num { color: var(--accent); margin-right: 8px; font-weight: 600; }
+        .container {
+            max-width: 100%;
+            padding: 0 40px 80px;
+        }
+        section {
+            padding: 60px 0 40px;
+            border-bottom: 1px solid var(--border);
+        }
+        .feature-number {
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .feature-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        .feature-cv-bullet {
+            border-left: 3px solid var(--accent);
+            padding: 12px 20px;
+            background: var(--surface);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            font-size: 0.95rem;
+        }
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card h3 {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-light);
+            margin-bottom: 14px;
+        }
+        .card p, .card li { font-size: 0.92rem; color: var(--text-muted); margin-bottom: 8px; }
+        .card ul { padding-left: 18px; }
+        .card li { color: var(--text-muted); }
+        .highlight { color: var(--text); font-weight: 600; }
+        .diagram-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 24px 0;
+            overflow-x: auto;
+        }
+        .diagram-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin: 3px 2px;
+        }
+        .tag.purple { background: rgba(108,99,255,0.15); color: var(--accent-light); border: 1px solid rgba(108,99,255,0.3); }
+        .tag.cyan { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+        .tag.green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .tag.yellow { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+        .tag.red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+        .info-box {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+        }
+        .info-box.blue { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.25); }
+        .info-box.green { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); }
+        .info-box.yellow { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25); }
+        .info-box h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .info-box.blue h4 { color: var(--cyan); }
+        .info-box.green h4 { color: var(--green); }
+        .info-box.yellow h4 { color: var(--yellow); }
+        .tech-row { margin-top: 20px; }
+        .tech-row h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+        code {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.88rem;
+            color: var(--cyan);
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+        }
+        .mermaid { min-height: 100px; }
+        /* ── Collapsible wrappers ── */
+        .collapsible-wrapper { margin-bottom: 32px; }
+        .collapse-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-light);
+            font-weight: 600;
+            text-align: left;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+        .collapse-toggle:hover { border-color: var(--accent); color: var(--text); background: var(--surface2); }
+        .collapse-arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            color: var(--accent);
+            font-size: 0.65rem;
+            flex-shrink: 0;
+        }
+        .collapsible-wrapper.collapsed .collapse-arrow { transform: rotate(-90deg); }
+        .collapsible-content { margin-top: 12px; }
+        .collapsible-wrapper.collapsed .collapsible-content { display: none; }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+            .container { padding: 0 20px 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>Equra AI — Technical Breakdown</h1>
+    <p class="subtitle">System architecture, product scenarios, and engineering deep dives — all diagrams based on actual code</p>
+</div>
+
+<div class="toc">
+    <h2>Contents</h2>
+    <div class="toc-grid">
+        <a href="#overview"><span class="num">00</span> System Architecture Overview</a>
+        <a href="#agents"><span class="num">01</span> Multi-Agent AI System</a>
+        <a href="#rag"><span class="num">02</span> Hybrid RAG Pipeline</a>
+        <a href="#cot"><span class="num">03</span> Chain-of-Thought Prompting</a>
+        <a href="#finbert"><span class="num">04</span> FinBERT Sentiment Analysis</a>
+        <a href="#llm"><span class="num">05</span> Multi-Provider LLM Orchestration</a>
+        <a href="#manus"><span class="num">06</span> Manus AI Autonomous Agent</a>
+        <a href="#resilience"><span class="num">07</span> Resilient AI Pipelines</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ======================================================= -->
+    <!-- 00. OVERVIEW                                            -->
+    <!-- ======================================================= -->
+    <section id="overview">
+        <div class="feature-number">Overview</div>
+        <h2 class="feature-title">System Architecture — How Everything Connects</h2>
+        <p style="color:var(--text-muted); margin-bottom: 32px; max-width: 800px;">
+            Equra AI is not a single AI call wrapped in an app. The mobile app directly calls purpose-built endpoints — each screen and component knows exactly which API to hit. There is no server-side orchestrator: <code>routes.ts</code> registers Express handlers, and the mobile UI decides what to call based on user action. This section shows how all 7 features connect as one system.
+        </p>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">High-Level System Architecture</div>
+            <div class="mermaid">
+flowchart TD
+    subgraph MOBILE["Mobile App — React Native / Expo"]
+        C1["StockAnalysis component\nHoldingDetail + StockSearch screens"]
+        C2["AIScreen — Portfolio · Compare · Deploy tabs"]
+        C2B["AIScreen — Behavior tab"]
+        C3["ManusDeepAnalysis component"]
+        C4["TransactionImportModal"]
+        C5["SentimentGauge · PortfolioSentimentGauge"]
+    end
+
+    C1 -->|"GET /api/ai/:provider/stock-analysis/:symbol\none call per provider — in parallel"| AP
+    C2 -->|"POST /api/ai/:provider/[portfolio|compare|deploy]-analysis\none call per provider — in parallel"| AP
+    C2B -->|"POST /api/ai/:provider/behavior-analysis\nclient data only — no external fetch"| AP
+    C3 -->|"POST /api/manus/analyze/:symbol"| MSVC
+    C4 -->|"POST /api/extract-transactions"| VSVC
+    C5 -->|"GET /api/stocks/:symbol/sentiment\nPOST /api/portfolio-sentiment"| FBSVC
+
+    AP["ai-providers.ts\nrunAnalysis — builds prompt · calls provider · validates output"]
+    style AP fill:#6c63ff,color:#fff
+
+    subgraph DATA["Data Layer — assembled in route handler before calling runAnalysis\nnot used for behavior analysis"]
+        D1["EODHD API\nPrice · P/E · EPS · Book Value · Div Yield\n(all stocks for deploy · compared stocks for compare)"]
+        D2["Calculated Metrics\nSharpe ratio · Sortino ratio\n30d + 90d price change\n252-day historical prices\n(stock analysis only)"]
+        D3["Hybrid RAG — LanceDB\n6 chunks · 4 expanded queries (stock)\n3 chunks/symbol (portfolio · compare · deploy)"]
+        D4["FinBERT Sentiment\nper-headline scores included in prompt\n(stock · portfolio · compare · deploy)"]
+    end
+
+    AP --> DATA
+    DATA --> PROMPT["LLM Prompt\nAll assembled data + CoT reasoning instruction"]
+    style PROMPT fill:#6c63ff,color:#fff
+
+    subgraph LLM_LAYER["Multi-Provider LLM Layer"]
+        L1["Gemini 2.5 Flash"]
+        L2["Groq — Llama 4 Scout"]
+        L3["Cerebras — GPT-OSS 120B"]
+        L4["HuggingFace — Qwen 2.5 72B"]
+    end
+
+    PROMPT --> LLM_LAYER
+    LLM_LAYER --> VAL["Schema Validation\nJSON parsed · schema enforced · MAX 2 retries\nerror feedback appended to prompt on retry"]
+    style VAL fill:#eab308,color:#000
+
+    VAL -->|Pass| OUT1["Structured JSON Response\nrecommendation · fairValue · zones\nreasoningSteps[] · keyPoints"]
+    style OUT1 fill:#22c55e,color:#000
+
+    VAL -->|All retries fail| OUT_ERR["503 Error\nno formula fallback — mobile shows error state"]
+    style OUT_ERR fill:#ef4444,color:#fff
+
+    D3 -->|"getStockAnalysisContext — RAG chunks\ninjected into task prompt"| MSVC
+    MSVC["manus-service.ts\nRAG context injected into task prompt\nthen Manus browses the web autonomously\nasync polling + webhook"]
+    VSVC["vision-service.ts\nGemini 2.5 Flash Lite — image → JSON"]
+    FBSVC["FinBERT Pipeline\nEODHD + BBC RSS news → NLP sentiment"]
+
+    OUT1 & OUT_ERR & MSVC & VSVC & FBSVC --> UI(["Mobile App UI\nAnalysis cards · Sentiment gauge · Deep report"])
+    style UI fill:#22c55e,color:#000
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Sequence — Complete Flow for a Single Stock Analysis Request</div>
+            <div class="mermaid">
+sequenceDiagram
+    participant App as Mobile App (StockAnalysis component)
+    participant API as ai-providers.ts handler
+    participant EODHD as EODHD API
+    participant TV as TradingView
+    participant RAG as LanceDB RAG
+    participant FB as FinBERT
+    participant LLM as Gemini / Provider
+    participant VAL as Schema Validation
+
+    App->>API: GET /api/ai/:provider/stock-analysis/:symbol
+    par Parallel data fetch (routes.ts handler)
+        API->>EODHD: EOD price, P/E, EPS, Book Value, Dividend Yield
+        EODHD-->>API: fundamentals
+        API->>EODHD: 252-day historical prices
+        EODHD-->>API: historical prices
+        API->>TV: EPS, P/E, P/B fallback
+        TV-->>API: fundamentals
+    end
+    Note over API: Calculate Sharpe, Sortino, 30d/90d change from historical prices
+    API->>FB: fetchSentimentForSymbol(symbol)
+    FB-->>API: raw per-headline FinBERT scores
+    API->>RAG: getStockAnalysisContext(symbol)
+    RAG-->>API: top 6 chunks via hybrid retrieval
+    Note over API: All data assembled — passed to runAnalysis() in ai-providers.ts
+    API->>LLM: One LLM call — all data + CoT instruction
+    Note over LLM: Reasons through 5 CoT steps internally
+    LLM-->>API: Structured JSON response
+    API->>VAL: validateAnalysis (schema check)
+    alt Validation passes
+        VAL-->>API: validated result
+    else Validation fails (max 2 attempts)
+        VAL-->>API: error details
+        API->>LLM: retry — validation error appended to prompt
+        LLM-->>API: corrected JSON
+        VAL-->>API: validated result
+    end
+    API-->>App: recommendation, fairValue, zones, reasoningSteps[], keyPoints
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 01. MULTI-AGENT                                         -->
+    <!-- ======================================================= -->
+    <section id="agents">
+        <div class="feature-number">Feature 01</div>
+        <h2 class="feature-title">Multi-Agent AI System</h2>
+        <div class="feature-cv-bullet">
+            "Built and orchestrated a multi-agent AI system with dedicated agents: Portfolio Health Check, Stock Comparison, Capital Deployment, Behavior Coaching, Transaction Import, and Manus AI Deep Analysis"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — When is each agent used?</h3>
+                <ul>
+                    <li><span class="highlight">Portfolio Analysis Agent</span> — user opens portfolio screen, wants health check, diversification score, strengths/weaknesses</li>
+                    <li><span class="highlight">Stock Comparison Agent</span> — user picks 2–3 stocks and asks "which should I buy with X EGP"</li>
+                    <li><span class="highlight">Capital Deployment Agent</span> — user has cash to invest and wants AI to allocate across their existing portfolio</li>
+                    <li><span class="highlight">Behavior Coaching Agent</span> — user wants feedback on their trading patterns and habits</li>
+                    <li><span class="highlight">Transaction Import Agent</span> — user screenshots their brokerage statement; Vision extracts transactions as JSON</li>
+                    <li><span class="highlight">Manus AI Agent</span> — user requests deep autonomous research on a specific stock; runs async in background</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Engineering — How routing works</h3>
+                <p>The mobile app calls each endpoint directly — no server-side orchestrator. <code>routes.ts</code> registers Express handlers; the mobile UI decides which endpoint to call based on which screen or component is active:</p>
+                <ul>
+                    <li><code>GET /api/ai/:provider/stock-analysis/:symbol</code> — Stock Analysis (StockAnalysis component)</li>
+                    <li><code>POST /api/ai/:provider/portfolio-analysis</code> — Portfolio Agent (AIScreen)</li>
+                    <li><code>POST /api/ai/:provider/deploy-capital</code> — Capital Deployment Agent (AIScreen)</li>
+                    <li><code>POST /api/ai/:provider/compare-stocks</code> — Stock Comparison Agent (AIScreen)</li>
+                    <li><code>POST /api/ai/:provider/behavior-analysis</code> — Behavior Agent (AIScreen)</li>
+                    <li><code>POST /api/extract-transactions</code> — Vision Agent (TransactionImportModal)</li>
+                    <li><code>POST /api/manus/analyze/:symbol</code> — Manus AI Agent (ManusDeepAnalysis component)</li>
+                </ul>
+                <p style="margin-top:10px;">Each handler calls <code>runAnalysis(provider, type, data)</code> in <code>ai-providers.ts</code> with a different <code>type</code> that selects the prompt builder and Zod schema.</p>
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Agent Routing Flow — Mobile calls each endpoint directly</div>
+            <div class="mermaid">
+flowchart TD
+    subgraph APP["Mobile App — component decides which endpoint to call"]
+        SA_UI["StockAnalysis component"]
+        AI_UI["AIScreen"]
+        MN_UI["ManusDeepAnalysis component"]
+        VI_UI["TransactionImportModal"]
+    end
+
+    SA_UI -->|GET /api/ai/:provider/stock-analysis/:symbol| SA[Stock Analysis\ntype=stock]
+    AI_UI -->|POST /api/ai/:provider/portfolio-analysis| PA[Portfolio Analysis\ntype=portfolio]
+    AI_UI -->|POST /api/ai/:provider/deploy-capital| DA[Capital Deployment\ntype=deploy]
+    AI_UI -->|POST /api/ai/:provider/compare-stocks| CA[Stock Comparison\ntype=compare]
+    AI_UI -->|POST /api/ai/:provider/behavior-analysis| BA[Behavior Coaching\ntype=behavior]
+    VI_UI -->|POST /api/extract-transactions| VA[Transaction Import\nGemini Vision]
+    MN_UI -->|POST /api/manus/analyze/:symbol| MA[Manus AI\nasync task]
+
+    SA & PA & DA & CA & BA --> AP[ai-providers.ts\nbuildPrompt + callProvider + validate]
+    style AP fill:#232636,stroke:#6c63ff
+
+    VA --> GV[vision-service.ts\nGemini Flash Lite]
+    MA --> MS[manus-service.ts\nManus API + webhook]
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Sequence — Multi-Provider Concurrent Execution (StockAnalysis component)</div>
+            <div class="mermaid">
+sequenceDiagram
+    participant App as Mobile App (StockAnalysis component)
+    participant TP as GET /api/ai/trusted-providers
+    participant API as GET /api/ai/:provider/stock-analysis/:symbol
+    participant G as Gemini Flash
+    participant GR as Groq Llama 4
+    participant CB as Cerebras 120B
+
+    App->>TP: fetch list of trusted providers
+    TP-->>App: [gemini, groq, cerebras, ...]
+
+    Note over App,CB: Mobile fires one request per provider — all in parallel (Promise.all)
+    App->>API: GET /api/ai/gemini/stock-analysis/SYMBOL
+    App->>API: GET /api/ai/groq/stock-analysis/SYMBOL
+    App->>API: GET /api/ai/cerebras/stock-analysis/SYMBOL
+
+    par Each handler runs independently
+        API->>G: buildStockPrompt + RAG + callGemini
+        G-->>API: JSON response
+        API->>GR: buildStockPrompt + RAG + callOpenAICompatible groq
+        GR-->>API: JSON response
+        API->>CB: buildStockPrompt + RAG + callOpenAICompatible cerebras
+        CB-->>API: JSON response
+    end
+
+    Note over API: Each response validated independently with Zod
+    API-->>App: provider results stream in as each completes
+    Note over App: UI updates progressively — each card appears when its provider finishes
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 02. HYBRID RAG                                          -->
+    <!-- ======================================================= -->
+    <section id="rag">
+        <div class="feature-number">Feature 02</div>
+        <h2 class="feature-title">Hybrid RAG Pipeline</h2>
+        <div class="feature-cv-bullet">
+            "Designed a hybrid RAG pipeline combining query expansion, Reciprocal Rank Fusion (RRF), and keyword re-ranking over financial PDF embeddings stored in LanceDB"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — Why does this exist?</h3>
+                <p>Company financial reports (PDFs) contain the ground-truth data the AI needs — actual revenue, margins, earnings, guidance. Without RAG, the AI relies on training data which may be months or years out of date. RAG injects the real numbers directly into the prompt.</p>
+                <p style="margin-top:10px;">A user asks "should I buy ABUK?" — RAG pulls the latest quarterly earnings chunks so Gemini can say "revenue grew 25% YoY per their Q3 report" instead of guessing.</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — The 4 components</h3>
+                <ul>
+                    <li><span class="highlight">Query Expansion</span> — <code>expandQuery(symbol, taskType)</code> in <code>rag/query-expansion.ts</code> generates 4 hardcoded query variants targeting different financial angles</li>
+                    <li><span class="highlight">Vector Search</span> — each variant searches LanceDB table <code>financial_reports_{symbol}</code>, returns top 8 chunks by embedding similarity</li>
+                    <li><span class="highlight">RRF Merge</span> — <code>mergeAndRerank()</code> in <code>rag/hybrid-retrieval.ts</code>: score = Σ 1/(60 + rank), combines ranked lists from all query variants</li>
+                    <li><span class="highlight">Keyword Re-rank</span> — term overlap scoring with stopwords removed, final score = 70% RRF + 30% keyword overlap</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="info-box blue">
+            <h4>Controlled by RAG_HYBRID_ENABLED env var</h4>
+            If <code>false</code>, falls back to simple vector-only search: one query, one LanceDB call, top 6 by similarity. No RRF, no keyword re-rank. Useful when embedding API is rate-limited.
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Hybrid RAG Retrieval Flow</div>
+            <div class="mermaid">
+flowchart LR
+    SYM([symbol + taskType]) --> QE
+
+    QE["expandQuery\nrag/query-expansion.ts\n4 hardcoded variants\nper financial angle"]
+
+    QE --> V1["Variant 1\nfinancial performance\nrevenue profit earnings"]
+    QE --> V2["Variant 2\nvaluation fair value\nP/E earnings growth"]
+    QE --> V3["Variant 3\nquarterly annual report\nrevenue margin net income"]
+    QE --> V4["Variant 4\nbalance sheet assets\nliabilities equity cash flow"]
+
+    V1 -->|top 8 chunks| LDB[(LanceDB\nfinancial_reports_SYMBOL)]
+    V2 -->|top 8 chunks| LDB
+    V3 -->|top 8 chunks| LDB
+    V4 -->|top 8 chunks| LDB
+
+    LDB --> RRF["Reciprocal Rank Fusion\nmergeAndRerank\nscore = sum of 1 divided by 60+rank\nacross all 4 result lists"]
+    style RRF fill:#6c63ff,color:#fff
+
+    RRF --> KW["Keyword Re-rank\nkeywordOverlapScore\nstopwords removed\nmatch count divided by query terms"]
+
+    KW --> SCORE["Final Score\n70% RRF + 30% keyword\nsort descending"]
+
+    SCORE --> OUT["Top 6 chunks\ninjected into LLM prompt"]
+    style OUT fill:#22c55e,color:#000
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Sequence — RAG Context Retrieval for Stock Analysis</div>
+            <div class="mermaid">
+sequenceDiagram
+    participant API as routes.ts
+    participant QE as query-expansion.ts
+    participant HR as hybrid-retrieval.ts
+    participant LDB as LanceDB
+
+    API->>QE: expandQuery ABUK stock
+    QE-->>API: 4 query variants targeting valuation, earnings, balance sheet, dividends
+
+    loop For each of 4 query variants
+        API->>HR: getVectorResults ABUK variant top 8
+        HR->>LDB: vector search on financial_reports_abuk
+        LDB-->>HR: top 8 ranked chunks
+        HR-->>API: ranked list
+    end
+
+    API->>HR: reciprocalRankFusion 4 ranked lists
+    Note over HR: score per chunk = sum of 1 divided by 60 + rankInList
+    HR-->>API: unified RRF scores
+
+    API->>HR: keywordOverlapScore chunks vs original query
+    Note over HR: finalScore = 0.7 x RRF + 0.3 x keyword
+    HR-->>API: top 6 chunks sorted by final score
+
+    Note over API: Format as RELEVANT EXCERPTS FROM COMPANY FINANCIAL REPORTS ABUK
+    API-->>API: inject into LLM prompt
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">LanceDB</span>
+            <span class="tag cyan">Gemini Embeddings gemini-embedding-001</span>
+            <span class="tag green">Custom RRF TypeScript</span>
+            <span class="tag yellow">Custom Keyword Scoring</span>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 03. CHAIN OF THOUGHT                                    -->
+    <!-- ======================================================= -->
+    <section id="cot">
+        <div class="feature-number">Feature 03</div>
+        <h2 class="feature-title">Chain-of-Thought Prompting</h2>
+        <div class="feature-cv-bullet">
+            "Implemented Chain-of-Thought prompting with structured reasoning steps (data check, valuation, zone derivation, risk assessment, recommendation), surfaced transparently in the mobile UI"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — Why does this exist?</h3>
+                <p>Without CoT, the AI produces a recommendation with no visible reasoning. Users don't know why it says "Strong Buy". With CoT, every step of the AI's logic is shown in an expandable card in the mobile UI — users can see exactly which data was used and how the conclusion was reached.</p>
+                <p style="margin-top:10px;">A user seeing "Step 2: Graham formula gives fair value 47 EGP, current price 32 EGP = 32% discount" is far more likely to act on the recommendation than one who just sees "Strong Buy".</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — How it works</h3>
+                <p>The CoT is <span class="highlight">not 5 separate API calls</span>. It is one prompt that instructs the LLM to reason step by step before producing the final JSON. All 5 reasoning steps happen inside a single LLM call and are returned in the <code>reasoningSteps[]</code> array.</p>
+                <p style="margin-top:10px;">Each provider is called in parallel from the mobile. The validation loop in <code>runAnalysis</code> retries up to 2 times — on each retry, the specific schema or parse error is appended to the prompt so the LLM can self-correct.</p>
+                <p style="margin-top:10px;"><span class="highlight">Mobile UI:</span> <code>StockAnalysis.tsx</code> renders each provider result as a card with a "How we got here" expandable section. Tapping it shows <code>reasoningSteps[]</code> as a numbered list. Results are cached in AsyncStorage.</p>
+            </div>
+        </div>
+
+        <div class="info-box yellow">
+            <h4>What is assembled BEFORE the single LLM call</h4>
+            <ul style="margin-top:8px; padding-left:18px;">
+                <li><strong>Price:</strong> EODHD → TradingView → CNBC → stale cache (fallback chain)</li>
+                <li><strong>Fundamentals:</strong> TradingView → Mubasher → EGX static cache</li>
+                <li><strong>Risk metrics:</strong> 252-day EODHD historical prices → Sharpe ratio, Sortino ratio, priceChange30d, priceChange90d (all calculated in backend)</li>
+                <li><strong>RAG context:</strong> 4 query variants → LanceDB vector search (8 candidates each) → RRF + keyword rerank → top 6 chunks from financial PDF reports</li>
+                <li><strong>FinBERT:</strong> Raw per-headline scores — <code>{ title, source, scores: [{label, score}] }</code> — not aggregated</li>
+            </ul>
+        </div>
+
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Chain-of-Thought — Inside One Single LLM Call</div>
+            <div style="width:100%; padding: 8px 0;">
+
+                <!-- INPUT -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:18px; height:18px; border-radius:50%; background:#3b82f6; margin-top:18px;"></div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:2px solid #3b82f6; border-radius:12px; padding:24px; margin:10px 0 0 0; flex:1; min-width:0; box-sizing:border-box;">
+                        <div style="font-size:12px; font-weight:700; color:#3b82f6; letter-spacing:2px; text-transform:uppercase; margin-bottom:16px;">One Prompt Sent to LLM</div>
+                        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:16px;">
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">💰 Price</div>
+                                <div style="font-size:13px; color:#cbd5e1;">Live price from EODHD<br>52-week high / low · volume</div>
+                            </div>
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">📊 Fundamentals</div>
+                                <div style="font-size:13px; color:#cbd5e1;">P/E ratio · EPS · Book Value<br>Dividend Yield · P/B ratio</div>
+                            </div>
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">📈 Risk Metrics</div>
+                                <div style="font-size:13px; color:#cbd5e1;">Sharpe ratio · Sortino ratio<br>priceChange30d · priceChange90d<br><span style="color:#475569; font-size:11px;">calculated from 252-day EODHD history</span></div>
+                            </div>
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">📄 RAG Context</div>
+                                <div style="font-size:13px; color:#cbd5e1;">Top 6 chunks from LanceDB<br>4 query variants · RRF + keyword rerank<br><span style="color:#475569; font-size:11px;">from company financial PDF reports</span></div>
+                            </div>
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">🧠 FinBERT Sentiment</div>
+                                <div style="font-size:13px; color:#cbd5e1;">Per-headline scores: positive · negative · neutral<br>Not aggregated — raw scores injected</div>
+                            </div>
+                            <div style="background:#0f172a; border:1px solid #1e40af; border-radius:8px; padding:12px 16px;">
+                                <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">💬 CoT Instruction</div>
+                                <div style="font-size:13px; color:#cbd5e1;">Reason step-by-step before answering<br>Return all steps in reasoningSteps[]</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 1 -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:32px; height:32px; border-radius:50%; background:#6366f1; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#fff; flex-shrink:0;">1</div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #6366f1; border-radius:10px; padding:14px 18px; margin:8px 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#6366f1; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Step 1 — Data Check</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">What price, fundamentals, and sentiment do we have?<br>What is missing?</div>
+                    </div>
+                </div>
+
+                <!-- STEP 2 -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:32px; height:32px; border-radius:50%; background:#7c3aed; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#fff; flex-shrink:0;">2</div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #7c3aed; border-radius:10px; padding:14px 18px; margin:8px 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#a78bfa; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Step 2 — Valuation</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">
+                            P/E:&nbsp;&nbsp;&nbsp;&nbsp;fair value = EPS × target P/E<br>
+                            Graham: fair value = √(22.5 × EPS × BookValue)<br>
+                            P/B:&nbsp;&nbsp;&nbsp;&nbsp;if applicable<br>
+                            <span style="color:#64748b; font-style:italic;">Show the actual numbers from the data</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 3 -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:32px; height:32px; border-radius:50%; background:#0891b2; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#fff; flex-shrink:0;">3</div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #0891b2; border-radius:10px; padding:14px 18px; margin:8px 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#22d3ee; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Step 3 — Zone Derivation</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">
+                            Strong Buy: &nbsp;20–30% below fair value<br>
+                            Buy: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10–20% below fair value<br>
+                            Hold: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;±10% around fair value<br>
+                            Sell: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10–20% above fair value<br>
+                            Strong Sell: &gt;20% above fair value
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 4 -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:32px; height:32px; border-radius:50%; background:#d97706; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#fff; flex-shrink:0;">4</div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #d97706; border-radius:10px; padding:14px 18px; margin:8px 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#fbbf24; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Step 4 — Risk Assessment</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">
+                            Sharpe ratio — risk-adjusted return<br>
+                            Sortino ratio — downside risk only<br>
+                            <span style="color:#64748b; font-style:italic;">What do they imply for this stock?</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 5 -->
+                <div style="display:flex; align-items:stretch; margin-bottom:0; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:32px; height:32px; border-radius:50%; background:#dc2626; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; color:#fff; flex-shrink:0;">5</div>
+                        <div style="width:2px; flex:1; background:#334155; min-height:20px;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #dc2626; border-radius:10px; padding:14px 18px; margin:8px 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#f87171; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Step 5 — Conclusion</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">
+                            Why this recommendation?<br>
+                            Why this confidence level?
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OUTPUT -->
+                <div style="display:flex; align-items:stretch; max-width:680px; margin-left:auto; margin-right:auto;">
+                    <div style="display:flex; flex-direction:column; align-items:center; width:48px; flex-shrink:0;">
+                        <div style="width:2px; flex-shrink:0; height:20px; background:#334155;"></div>
+                        <div style="width:18px; height:18px; border-radius:50%; background:#22c55e; margin-bottom:0;"></div>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #22c55e; border-radius:10px; padding:14px 18px; margin:10px 0 0 0; flex:1;">
+                        <div style="font-size:11px; font-weight:700; color:#22c55e; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">JSON Output</div>
+                        <div style="font-size:13px; color:#94a3b8; line-height:1.6;">
+                            <code style="color:#86efac;">reasoningSteps[5]</code> · recommendation · confidence<br>
+                            fairValueEstimate · zones · targets · riskLevel<br>
+                            <span style="color:#64748b; font-style:italic;">Mobile: "How we got here" expandable in StockAnalysis.tsx</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">Gemini 2.5 Flash</span>
+            <span class="tag red">Groq Llama 4</span>
+            <span class="tag cyan">Cerebras 120B</span>
+            <span class="tag green">Zod schema validation</span>
+            <span class="tag yellow">React Native expandable cards</span>
+            <span class="tag blue">AsyncStorage caching</span>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 04. FINBERT                                              -->
+    <!-- ======================================================= -->
+    <section id="finbert">
+        <div class="feature-number">Feature 04</div>
+        <h2 class="feature-title">FinBERT Financial Sentiment Analysis</h2>
+        <div class="feature-cv-bullet">
+            "Integrated FinBERT for real-time financial sentiment analysis, injecting raw per-headline scores directly into LLM reasoning context"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — What does it do?</h3>
+                <p>For every stock analysis, the app fetches recent news headlines — company-specific and Egypt macroeconomic. Each headline is scored by FinBERT, a BERT model fine-tuned on financial text, returning a probability for positive, negative, and neutral sentiment.</p>
+                <p style="margin-top:10px;">These scores are injected raw into the LLM prompt. Gemini sees each headline with its exact scores and factors this into the risk assessment and recommendation steps.</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — Two output modes</h3>
+                <p><span class="highlight">Raw — sent to AI:</span> Per-headline scores array. Each item is <code>{ title, source, scores: [{label, score}] }</code>. No aggregation. The LLM sees every individual score.</p>
+                <p style="margin-top:10px;"><span class="highlight">Aggregated — displayed in UI:</span> Average bullish/bearish/neutral scores. Label is "Bullish" if avgBullish is above 0.40 and greater than avgBearish, "Bearish" if opposite, else "Neutral".</p>
+                <p style="margin-top:10px;"><span class="highlight">News sources:</span> EODHD news API with fallback to Google News RSS for company news, and BBC RSS feeds for macro Egypt news.</p>
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">FinBERT Sentiment Pipeline</div>
+            <div class="mermaid">
+flowchart LR
+    SYM([symbol]) --> MIC & MAC
+
+    MIC["Micro News\nEODHD /news?s=SYMBOL.EGX\nFallback: Google News RSS"]
+    MAC["Macro News\nEODHD /news?t=egypt\nFallback: BBC RSS\nMiddle East + Africa + Business"]
+
+    MIC -->|top 5 headlines| COMBINE
+    MAC -->|top 5 headlines| COMBINE
+
+    COMBINE["Deduplicate by title\nSort by date\nMax 10 headlines total"] --> FB
+
+    FB["FinBERT\nProsusAI/finbert\nHuggingFace Inference API"]
+    style FB fill:#6c63ff,color:#fff
+
+    FB -->|per headline| SCORES["raw scores per headline\npositive score\nnegative score\nneutral score"]
+
+    SCORES --> RAW["Raw inject into LLM\nper-headline scores array\nno aggregation"]
+    style RAW fill:#22c55e,color:#000
+
+    SCORES --> AGG["Aggregated for UI\navgBullish, avgBearish, avgNeutral\nBullish if avgBullish above 0.40\nand greater than avgBearish"]
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Sequence — Sentiment Fetch + AI Analysis</div>
+            <div class="mermaid">
+sequenceDiagram
+    participant API as routes.ts
+    participant EODHD as EODHD News API
+    participant BBC as BBC RSS
+    participant HF as HuggingFace FinBERT
+    participant LLM as Gemini
+
+    API->>EODHD: GET /news?s=SYMBOL.EGX micro news
+    EODHD-->>API: company headlines
+    API->>EODHD: GET /news?t=egypt macro news
+    EODHD-->>API: egypt economy headlines
+    alt EODHD macro fails
+        API->>BBC: BBC RSS Middle East Africa Business feeds
+        BBC-->>API: macro headlines
+    end
+
+    Note over API: deduplicate by title, sort by date, take top 10
+    API->>HF: POST ProsusAI/finbert all headlines
+    HF-->>API: label and score per headline
+
+    Note over API: Attach raw scores to StockDataForAI.sentiment array
+    API->>LLM: prompt including raw per-headline FinBERT scores
+    Note over LLM: Uses sentiment in Step 1 data check and Step 4 risk assessment
+    LLM-->>API: recommendation influenced by sentiment context
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">ProsusAI/finbert via HuggingFace</span>
+            <span class="tag cyan">EODHD News API</span>
+            <span class="tag green">BBC RSS Feeds</span>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 05. MULTI-PROVIDER LLM                                  -->
+    <!-- ======================================================= -->
+    <section id="llm">
+        <div class="feature-number">Feature 05</div>
+        <h2 class="feature-title">Multi-Provider LLM Orchestration</h2>
+        <div class="feature-cv-bullet">
+            "Built a multi-provider LLM orchestration layer (Gemini, Groq, Cerebras, HuggingFace) with automatic fallback chains and exponential-backoff retry logic"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — Why multiple providers?</h3>
+                <p>Each provider has rate limits, quota caps, and different response quality. The AI Screen lets users compare all 4 providers side by side for the same stock. If one provider is rate-limited or down, analysis continues through the others.</p>
+                <p style="margin-top:10px;">Users can see how Gemini, Groq Llama 4, Cerebras 120B, and HuggingFace Qwen 2.5 each reason about the same stock — different models, same structured output format.</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — Provider config</h3>
+                <ul>
+                    <li><span class="highlight">Gemini 2.5 Pro</span> — <code>callGemini()</code> via Google Generative AI SDK, lazy-loaded client</li>
+                    <li><span class="highlight">Groq Llama 4</span> — model <code>meta-llama/llama-4-scout-17b-16e-instruct</code>, OpenAI-compatible at <code>api.groq.com/openai/v1</code></li>
+                    <li><span class="highlight">Cerebras 120B</span> — model <code>gpt-oss-120b</code>, OpenAI-compatible at <code>api.cerebras.ai/v1</code></li>
+                    <li><span class="highlight">HuggingFace Qwen 2.5</span> — model <code>Qwen/Qwen2.5-72B-Instruct</code>, OpenAI-compatible at <code>router.huggingface.co/v1</code></li>
+                </ul>
+                <p style="margin-top:10px;">Retry: 3 attempts, exponential backoff 2s then 4s then 8s on 429 and 503. Status 402 skips immediately. JSON parse failures and Zod failures trigger self-correction retry with error feedback appended to prompt.</p>
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Provider Call Flow with Retry and Validation</div>
+            <div class="mermaid">
+flowchart TD
+    START([callWithRetry\nprovider + prompt\nmaxRetries=3]) --> CALL
+
+    CALL[callProvider\ncallGemini or callOpenAICompatible] --> RESP
+
+    RESP{Response received?}
+    RESP -->|yes| CLEAN
+
+    CLEAN["cleanJsonResponse\nstrip markdown code blocks\nstrip think tags\nfix truncated JSON"] --> PARSE
+
+    PARSE{JSON.parse success?}
+    PARSE -->|fail| RETRY_CHECK1
+
+    PARSE -->|success| ZOD[validateAnalysis\nZod schema]
+
+    ZOD{Valid?}
+    ZOD -->|pass| DONE([return result])
+    style DONE fill:#22c55e,color:#000
+
+    ZOD -->|fail| RETRY_CHECK2[check attempt count]
+    RETRY_CHECK1[check attempt count] --> RETRY_CHECK2
+
+    RETRY_CHECK2{attempt less than maxRetries?}
+    RETRY_CHECK2 -->|yes| FEEDBACK["append error feedback to prompt\nprevious validation error details"]
+    FEEDBACK --> BACKOFF["exponential backoff\nattempt 0: 2 seconds\nattempt 1: 4 seconds\nattempt 2: 8 seconds"]
+    BACKOFF --> CALL
+
+    RETRY_CHECK2 -->|no| FAIL([return error result])
+    style FAIL fill:#ef4444,color:#fff
+
+    RESP -->|429 rate limit| BACKOFF
+    RESP -->|503 unavailable| BACKOFF
+    RESP -->|402 quota exceeded| FAIL
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">Google Gemini 2.5 Pro</span>
+            <span class="tag cyan">Groq Llama 4</span>
+            <span class="tag green">Cerebras 120B</span>
+            <span class="tag yellow">HuggingFace Qwen 2.5</span>
+            <span class="tag red">Zod validation + self-correction</span>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 06. MANUS AI                                            -->
+    <!-- ======================================================= -->
+    <section id="manus">
+        <div class="feature-number">Feature 06</div>
+        <h2 class="feature-title">Manus AI Autonomous Agent</h2>
+        <div class="feature-cv-bullet">
+            "Integrated Manus AI as an autonomous web agent via asynchronous webhooks to perform deep-dive research and generate comprehensive financial reports"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — What does it do?</h3>
+                <p>When a user requests a deep dive on a stock, Manus AI takes over autonomously. It browses the web on its own — finds EGX filings, financial news, analyst reports — and produces a comprehensive Markdown research report including: company overview, financial analysis, competitive landscape, macroeconomic factors, DCF valuation, fair value zones, and risk assessment.</p>
+                <p style="margin-top:10px;">This is async — the user sees "analysis in progress" while Manus works in the background. Results are cached for 24 hours.</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — The async webhook flow</h3>
+                <ul>
+                    <li><span class="highlight">Initiation:</span> <code>POST /api/manus/analyze/:symbol</code> calls Manus API <code>/v1/tasks</code> with agentProfile "manus-1.6" and taskMode "agent". Returns taskId immediately.</li>
+                    <li><span class="highlight">Polling:</span> <code>GET /api/manus/status/:symbol</code> polls Manus <code>/v1/tasks/:taskId</code> for real-time status.</li>
+                    <li><span class="highlight">Webhook:</span> Manus calls <code>POST /api/manus/webhook</code> on task.completed. Handler extracts symbol via regex from task output.</li>
+                    <li><span class="highlight">Extraction:</span> <code>extractManusOutput()</code> filters for role="assistant" messages, extracts type="output_text" content.</li>
+                    <li><span class="highlight">Parsing:</span> <code>parseManusReport()</code> uses regex to extract summary, recommendation, and fair value from Markdown.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Sequence — Manus Async Webhook Flow</div>
+            <div class="mermaid">
+sequenceDiagram
+    participant App as Mobile App
+    participant API as routes.ts
+    participant MS as manus-service.ts
+    participant MANUS as Manus AI API
+    participant WH as manus-webhook-handler.ts
+    participant CACHE as api-cache.ts
+
+    App->>API: POST /api/manus/analyze/ETEL
+    API->>MS: createManusAnalysis ETEL with stockData + RAG + sentiment
+    MS->>MANUS: POST /v1/tasks with agentProfile manus-1.6 taskMode agent
+    MANUS-->>MS: task_id and task_url
+    MS->>CACHE: cache taskId with status pending and createdAt
+    MS-->>App: taskId status pending taskUrl
+
+    Note over App: User sees Analysis in progress
+
+    loop Polling triggered by user
+        App->>API: GET /api/manus/status/ETEL
+        API->>MS: getManusTaskStatus ETEL
+        MS->>MANUS: GET /v1/tasks/:taskId
+        MANUS-->>MS: status running
+        MS-->>App: status running
+    end
+
+    Note over MANUS: Manus autonomously browses web reads filings writes report
+
+    MANUS->>WH: POST /api/manus/webhook event_type task.completed
+    WH->>WH: extractSymbolFromTask — regex match SYMBOL pattern from prompt
+    WH->>WH: extractManusOutput — filter role=assistant type=output_text
+    WH->>WH: parseManusReport — regex extract summary recommendation fairValue
+    WH->>CACHE: saveManusAnalysisResult ETEL with 24h TTL
+
+    App->>API: GET /api/manus/result/ETEL
+    API->>CACHE: getManusAnalysisResult ETEL
+    CACHE-->>App: status completed with summary detailedReport recommendation fairValueEstimate
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">Manus AI API manus-1.6</span>
+            <span class="tag cyan">Async webhooks</span>
+            <span class="tag green">24h file-based cache</span>
+            <span class="tag yellow">Regex output parsing</span>
+        </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- 07. RESILIENCE                                          -->
+    <!-- ======================================================= -->
+    <section id="resilience">
+        <div class="feature-number">Feature 07</div>
+        <h2 class="feature-title">Resilient AI Pipelines</h2>
+        <div class="feature-cv-bullet">
+            "Engineered resilient AI pipelines with graceful degradation across price sources (EODHD, TradingView, CNBC), news feeds, and LLM providers"
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Product — Why does this matter?</h3>
+                <p>EGX data is not on Bloomberg. EODHD is the primary source but has quota limits. TradingView has no official API. CNBC has scraped endpoints. Any of these can fail at any time.</p>
+                <p style="margin-top:10px;">Without resilience, a single EODHD rate-limit would break every stock card. With the fallback chain, the app degrades gracefully. The response includes a <code>priceSource</code> field so the UI shows "data from TradingView" when EODHD is unavailable.</p>
+            </div>
+            <div class="card">
+                <h3>Engineering — Three fallback chains</h3>
+                <p><span class="highlight">Price:</span> EODHD EOD → TradingView scan endpoint → CNBC quote endpoint → stale cache</p>
+                <p style="margin-top:10px;"><span class="highlight">Fundamentals:</span> TradingView (EPS, P/E, P/B) → Mubasher overview → EGX static cache (70+ stocks, Jan 2026 snapshot)</p>
+                <p style="margin-top:10px;"><span class="highlight">News:</span> EODHD news → Google News RSS for company news, BBC RSS for macro Egypt news</p>
+                <p style="margin-top:10px;"><span class="highlight">LLM:</span> All providers fail after retries → formula fallback using P/E + Graham formula, returns confidence=Low</p>
+            </div>
+        </div>
+
+        <div class="diagram-wrap">
+            <div class="diagram-title">Full Resilience Map — All Fallback Chains</div>
+            <div class="mermaid">
+flowchart TD
+    subgraph PRICE["Price Data Fallback"]
+        P1[EODHD EOD API] -->|402 quota or fail| P2[TradingView scan endpoint]
+        P2 -->|fail| P3[CNBC quote endpoint]
+        P3 -->|fail| P4[Stale cache entry]
+        P4 -->|no cache| P5([price null — error returned])
+        style P5 fill:#ef4444,color:#fff
+    end
+
+    subgraph FUND["Fundamentals Fallback"]
+        F1[TradingView EPS P/E P/B] -->|fail| F2[Mubasher overview API]
+        F2 -->|fail| F3[EGX Static Cache\n70+ stocks Jan 2026]
+    end
+
+    subgraph NEWS["News Fallback"]
+        N1[EODHD /news micro company] -->|fail| N2[Google News RSS]
+        N3[EODHD /news macro egypt] -->|fail| N4[BBC RSS\nMiddle East + Africa + Business]
+    end
+
+    subgraph LLM_FB["LLM Fallback"]
+        L1[Gemini 2.5 Pro] -->|retry exhausted| L2[Groq Llama 4]
+        L2 -->|fail| L3[Cerebras 120B]
+        L3 -->|fail| L4[HuggingFace Qwen]
+        L4 -->|all fail| L5["Formula Fallback\nP/E method + Graham formula\nconfidence = Low"]
+        style L5 fill:#ef4444,color:#fff
+    end
+
+    PRICE & FUND & NEWS --> PROMPT[Build LLM Prompt]
+    PROMPT --> LLM_FB
+    LLM_FB --> RESULT([Final result with source attribution])
+            </div>
+        </div>
+
+        <div class="tech-row">
+            <h4>Tech Used</h4>
+            <span class="tag purple">EODHD API</span>
+            <span class="tag cyan">TradingView unofficial endpoint</span>
+            <span class="tag green">CNBC quote endpoint</span>
+            <span class="tag yellow">BBC RSS</span>
+            <span class="tag red">File-based cache api-cache.ts</span>
+        </div>
+    </section>
+
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#6c63ff',
+            primaryTextColor: '#e4e6f0',
+            primaryBorderColor: '#2e3148',
+            lineColor: '#8b8fa8',
+            secondaryColor: '#1a1d28',
+            tertiaryColor: '#232636',
+            background: '#0f1117',
+            mainBkg: '#1a1d28',
+            nodeBorder: '#2e3148',
+            clusterBkg: '#1a1d28',
+            titleColor: '#e4e6f0',
+            edgeLabelBackground: '#1a1d28'
+        },
+        flowchart: { curve: 'basis' },
+        sequence: { actorMargin: 50, messageMargin: 40 }
+    });
+
+    // ── Collapsible sections (runs after window.load so mermaid SVGs are fully rendered) ──
+    window.addEventListener('load', function () {
+        setTimeout(function () {
+
+            // Collapse all .two-col sections
+            document.querySelectorAll('.two-col').forEach(function (el) {
+                var cards = el.querySelectorAll('.card h3');
+                var label = cards.length
+                    ? Array.from(cards).map(function (c) { return c.textContent.trim(); }).join(' · ')
+                    : 'Product & Engineering';
+                wrapCollapsible(el, label);
+            });
+
+            // Collapse all sequence diagrams
+            document.querySelectorAll('.diagram-wrap').forEach(function (el) {
+                var titleEl = el.querySelector('.diagram-title');
+                if (titleEl && titleEl.textContent.includes('Sequence')) {
+                    wrapCollapsible(el, titleEl.textContent.trim());
+                }
+            });
+
+        }, 400); // wait for mermaid async render to complete
+    });
+
+    function wrapCollapsible(el, label) {
+        var wrapper = document.createElement('div');
+        wrapper.className = 'collapsible-wrapper collapsed';
+
+        var toggle = document.createElement('button');
+        toggle.className = 'collapse-toggle';
+        toggle.innerHTML = '<span class="collapse-arrow">▼</span>' + label;
+
+        var content = document.createElement('div');
+        content.className = 'collapsible-content';
+
+        el.parentNode.insertBefore(wrapper, el);
+        wrapper.appendChild(toggle);
+        content.appendChild(el);
+        wrapper.appendChild(content);
+
+        toggle.addEventListener('click', function () {
+            wrapper.classList.toggle('collapsed');
+        });
+    }
+</script>
+
+</body>
+</html>
