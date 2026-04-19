@@ -180,6 +180,27 @@ The [`price monitor`](../server/monitoring/price-monitor.ts#L57-L91) polls EODHD
 
 ---
 
+## Beyond the Recommendation Pipeline
+
+The five-agent orchestrator covers recommendation generation. The product has two further AI surfaces that sit outside that pipeline but share the same LLM and data infrastructure.
+
+### Behavior Coaching
+A separate analysis mode that ingests the user's own trading history (holdings, transactions, dividends, realized gains from the mobile app) and produces personal coaching — identified patterns, improvement areas, plain-English feedback, and a single "one thing to change" recommendation.
+
+- Endpoint: `POST /api/ai/:provider/behavior-analysis` — [`routes.ts#L2293-L2318`](../server/routes.ts#L2293-L2318)
+- Output schema (Zod-validated): `patterns[]`, `improvementAreas[]`, `feedback`, `oneThingToChange`, `reasoningSteps[]` — [`analysis-schemas.ts#L174-L184`](../server/schemas/analysis-schemas.ts#L174-L184)
+- Invoked as `runAnalysis(provider, "behavior", { data })`, so it transparently supports the same multi-provider fallback (Gemini / Groq / Cerebras) as stock analysis.
+
+### Transaction Import Pipeline (feeds Behavior Coaching)
+Users can upload Thndr brokerage invoices as PDFs or screenshots; the backend extracts the transactions and normalises them into the SQLite memory store for later coaching and portfolio-aware analysis.
+
+- PDF path — regex parsing of the standardised Thndr invoice layout: [`thndr/pdf-parser.ts`](../server/thndr/pdf-parser.ts)
+- Screenshot path — Gemini Vision extraction: [`thndr/vision-extractor.ts`](../server/thndr/vision-extractor.ts)
+- Symbol resolution (ISIN → ticker → fuzzy match → AI fallback): [`thndr/symbol-resolver.ts`](../server/thndr/symbol-resolver.ts)
+- Orchestration + persistence to `thndr_transactions`: [`thndr/thndr-service.ts`](../server/thndr/thndr-service.ts), [`thndr/inbound-handler.ts`](../server/thndr/inbound-handler.ts)
+
+---
+
 ## Source Map
 
 | Concern | File |
@@ -197,3 +218,6 @@ The [`price monitor`](../server/monitoring/price-monitor.ts#L57-L91) polls EODHD
 | PDF ingestion (RAG) | [`server/scripts/ingest-pdfs.ts`](../server/scripts/ingest-pdfs.ts) |
 | Hybrid RAG retrieval | [`server/rag-service.ts`](../server/rag-service.ts) |
 | HTTP integration point | [`server/routes.ts`](../server/routes.ts) (search `runOrchestratedPipeline`) |
+| Behavior Coaching endpoint | [`server/routes.ts`](../server/routes.ts#L2293-L2318) |
+| Behavior Coaching schema | [`server/schemas/analysis-schemas.ts`](../server/schemas/analysis-schemas.ts#L174-L184) |
+| Transaction import (Thndr) | [`server/thndr/`](../server/thndr/) |
