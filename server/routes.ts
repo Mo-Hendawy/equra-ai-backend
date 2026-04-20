@@ -2523,6 +2523,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CALENDAR: Send a test push to all registered devices. Proves the Firebase
+  // pipeline end-to-end: if FCM accepts the call, sent > 0 (or invalidTokens
+  // populated on rejection). If Firebase isn't initialized, both are 0.
+  app.post('/api/calendar/test-push', async (_req, res) => {
+    try {
+      const { dispatchPush } = await import('./calendar/push-dispatcher.js');
+      const result = await dispatchPush({
+        title: 'Equra AI test push',
+        body: 'If you see this, FCM is working end-to-end.',
+        data: { route: 'DividendCalendar', test: 'true' },
+      });
+      return res.json(result);
+    } catch (e: any) {
+      console.error('[routes] /api/calendar/test-push error:', e);
+      return res.status(500).json({ error: e.message ?? 'Internal error' });
+    }
+  });
+
   // CALENDAR: Manual trigger for testing (run a poll on demand)
   app.post('/api/calendar/poll', async (_req, res) => {
     try {
