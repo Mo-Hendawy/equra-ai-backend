@@ -6,7 +6,15 @@
 // of a Firebase service account key (Project Settings → Service Accounts →
 // Generate new private key).
 import admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { calendarService } from './calendar-service.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Resolves to server/firebase-service-account.json relative to this file.
+const SA_FILE_PATH = path.join(__dirname, '..', 'firebase-service-account.json');
 
 let initialized = false;
 let initError: string | null = null;
@@ -14,11 +22,16 @@ let initError: string | null = null;
 function ensureInit(): boolean {
   if (initialized) return true;
   if (initError) return false;
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  // Prefer env var if set (so secrets can eventually move off git); else file.
+  let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    initError = 'FIREBASE_SERVICE_ACCOUNT_JSON env var not set';
-    console.warn(`[push-dispatcher] ${initError} — push disabled`);
-    return false;
+    try {
+      raw = fs.readFileSync(SA_FILE_PATH, 'utf-8');
+    } catch {
+      initError = `No service account: set FIREBASE_SERVICE_ACCOUNT_JSON or drop file at ${SA_FILE_PATH}`;
+      console.warn(`[push-dispatcher] ${initError} — push disabled`);
+      return false;
+    }
   }
   try {
     const serviceAccount = JSON.parse(raw);
@@ -29,7 +42,7 @@ function ensureInit(): boolean {
     console.log('[push-dispatcher] Firebase Admin initialized');
     return true;
   } catch (e) {
-    initError = `Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${(e as Error).message}`;
+    initError = `Invalid Firebase service account JSON: ${(e as Error).message}`;
     console.error(`[push-dispatcher] ${initError}`);
     return false;
   }
