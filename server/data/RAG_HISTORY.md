@@ -1,111 +1,57 @@
 # RAG Ingestion History
 
-**Generated:** 2026-04-16T04:10:01.263Z
-**Source:** Read from existing LanceDB (`rag-status.ts`)
+**Last run:** 2026-04-21T23:28:48.266Z
+**Source:** `C:\Repos\Financial-Reports`
 **LanceDB:** `C:\Repos\equra-ai-backend\server\data\lancedb`
+**Embedding model:** gemini-embedding-001
 
 ---
 
 ## Summary
 
-| Metric | Value |
+| Status | Count |
 |--------|-------|
-| Companies with vectors | 10 |
-| Companies empty | 1 |
-| Total vectors | 852 |
+| Full (all chunks embedded) | 1 |
+| Partial (some chunks failed) | 0 |
+| Empty (no vectors stored) | 0 |
+| Error | 0 |
+
+**Total vectors in LanceDB:** 99
+**Total chunks extracted:** 178
+**Total chunks embedded:** 99
+**Total chunks failed (e.g. rate limit):** 0
 
 ---
 
 ## Per-Company Details
 
-### ABUK — ✅
+### OLFI — ✅ FULL
 
 | Metric | Value |
 |--------|-------|
-| Table | `financial_reports_abuk` |
-| Vectors | 52 |
-| Source PDFs (from filenames in DB) | ABUK-Annual-Budget-2025.pdf, ABUK-Q1-2026.pdf, ABUK-Q2-2025.pdf, ABUK-Q3-2025.pdf |
+| PDF files | 10 |
+| Table name | `financial_reports_olfi` |
+| Vectors in LanceDB | 99 |
+| Chunks extracted | 178 |
+| Chunks embedded | 99 |
+| Chunks failed | 0 |
+| Chunks skipped (<50 chars) | 79 |
 
-### CIEB — ✅
+#### Per-file breakdown
 
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_cieb` |
-| Vectors | 236 |
-| Source PDFs (from filenames in DB) | CIEB-Q1-2025-Separate.pdf, CIEB-Q2-2025-Separate.pdf, CIEB-Q3-2025-Separate.pdf, CIEB-Q4-2025-Separate.pdf |
-
-### COMI — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_comi` |
-| Vectors | 136 |
-| Source PDFs (from filenames in DB) | CIB Condensed Financial Statements Standalone March25 ENGLISH.pdf, CIB Separate Condensed financial statements December 2025 English.pdf, CIB Separate Condensed financial statements June 2025 English.pdf, CIB Separate Condensed financial statements September 2025 English.pdf |
-
-### EFID — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_efid` |
-| Vectors | 43 |
-| Source PDFs (from filenames in DB) | 2025-q2-earnings-en.pdf, Edita-1Q2025-Earnings-release-E-vf.pdf, Edita-3Q2025-Earnings-Release-E-FINAL.pdf, Edita-4Q2025-Earnings-Release.pdf, Edita-FY2025-Consolidated.pdf, Edita-FY2025-Standalone.pdf |
-
-### EGAL — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_egal` |
-| Vectors | 7 |
-| Source PDFs (from filenames in DB) | 9 Months -- 2025.pdf, Annual -- 2025.pdf, EGAL-Q1.pdf, Quarter -- 2025.pdf, Quarter -- 2026.pdf, Semi-annual -- 2025.pdf |
-
-### ETEL — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_etel` |
-| Vectors | 14 |
-| Source PDFs (from filenames in DB) | Earnings_Release-Q2-2025.pdf, Earnings_Release-Q3-2025.pdf, Earnings_Release-Q4-2025.pdf, Earnings_Releasea-Q1-2025.pdf |
-
-### ISPH — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_isph` |
-| Vectors | 155 |
-| Source PDFs (from filenames in DB) | ISPH-FY2025-Earnings.pdf, ISPH-Q1-2025-Earnings.pdf, ISPH-Q1-2025-Standalone.pdf, ISPH-Q2-2025-Standalone.pdf, ISPH-Q3-2025-Earnings.pdf, ISPH-Q3-2025-Standalone.pdf, ISPH-Q4-2025-Standalone.pdf |
-
-### JUFO — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_jufo` |
-| Vectors | 136 |
-| Source PDFs (from filenames in DB) | JUFO-4Q25-Earnings-Release.pdf, JUFO-FY2025-Consolidated.pdf, JUFO-FY2025-Standalone.pdf, JUFO-Q1-2025.pdf, JUFO-Q2-2025.pdf, JUFO-Q3-2025.pdf |
-
-### MICH — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_mich` |
-| Vectors | 33 |
-| Source PDFs (from filenames in DB) | Misr Chemical Industries Annual 2025.pdf, Misr Chemical Industries First Quarter 2025.pdf, Misr Chemical Industries second Quarter 2025.pdf, Misr Chemical Industries Second Quarter 2026.pdf, Misr Chemical Industries Third Quarter 2025.pdf |
-
-### SWDY — ✅
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_swdy` |
-| Vectors | 40 |
-| Source PDFs (from filenames in DB) | Elsewedy-Electric-ER-1Q2025.pdf, Elsewedy-Electric-ER-2Q2025-E-.pdf, Elsewedy-Electric-ER-3Q2025-E-.pdf, Elsewedy-Electric-ER-4Q2025-E.pdf |
-
-### ADCI — ❌ EMPTY
-
-| Metric | Value |
-|--------|-------|
-| Table | `financial_reports_adci` |
-| Vectors | 0 |
-| Source PDFs (from filenames in DB) | — |
+| File | Extracted | Embedded | Failed | Skipped | Status |
+|------|-----------|----------|--------|---------|--------|
+| OLFI_AAIS_Initiation_2025.03.24.pdf | 42 | 21 | 0 | 21 | ✅ |
+| OLFI_AlAhly_Mizuho_2025.09.09.pdf | 18 | 9 | 0 | 9 | ✅ |
+| OLFI_Beltone_2025.06.23.pdf | 14 | 7 | 0 | 7 | ✅ |
+| OLFI_CairoCapitalHolding_2023.pdf | 21 | 17 | 0 | 4 | ✅ |
+| OLFI_Earnings_Release_1H2025.pdf | 14 | 7 | 0 | 7 | ✅ |
+| OLFI_Earnings_Release_1Q2025.pdf | 12 | 6 | 0 | 6 | ✅ |
+| OLFI_Earnings_Release_9M2025.pdf | 12 | 7 | 0 | 5 | ✅ |
+| OLFI_Earnings_Release_FY2024.pdf | 12 | 6 | 0 | 6 | ✅ |
+| OLFI_Earnings_Release_FY2025.pdf | 13 | 8 | 0 | 5 | ✅ |
+| OLFI_EFG_2024.pdf | 20 | 11 | 0 | 9 | ✅ |
 
 ---
 
-*Run `npx tsx server/scripts/ingest-pdfs.ts` to re-ingest. Run `npx tsx server/scripts/rag-status.ts` to refresh this from existing DB.*
+*Generated by `server/scripts/ingest-pdfs.ts`*

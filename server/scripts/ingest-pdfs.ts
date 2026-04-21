@@ -401,7 +401,16 @@ async function main() {
         process.exit(1);
     }
 
-    const items = fs.readdirSync(REPORTS_DIR);
+    // CLI filter: `node ingest-pdfs.ts OLFI JUFO` ingests only those companies.
+    // Case-insensitive match against directory names.
+    const cliFilter = process.argv.slice(2).map(s => s.toUpperCase());
+    const allItems = fs.readdirSync(REPORTS_DIR);
+    const items = cliFilter.length > 0
+        ? allItems.filter(name => cliFilter.includes(name.toUpperCase()))
+        : allItems;
+    if (cliFilter.length > 0) {
+        console.log(`🎯 Filter active: ${cliFilter.join(", ")} → matched ${items.length} directories`);
+    }
     const results: CompanyIngestionResult[] = [];
 
     for (let i = 0; i < items.length; i++) {

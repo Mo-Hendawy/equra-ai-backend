@@ -1,151 +1,112 @@
 {
-  "generatedAt": "2026-04-16T04:10:01.259Z",
-  "source": "rag-status.ts (read from LanceDB)",
+  "generatedAt": "2026-04-21T23:28:48.265Z",
   "sourceDir": "C:\\Repos\\Financial-Reports",
   "lancedbPath": "C:\\Repos\\equra-ai-backend\\server\\data\\lancedb",
+  "embedModel": "gemini-embedding-001",
   "companies": [
     {
-      "symbol": "ABUK",
-      "tableName": "financial_reports_abuk",
-      "vectorCount": 52,
-      "filenames": [
-        "ABUK-Annual-Budget-2025.pdf",
-        "ABUK-Q1-2026.pdf",
-        "ABUK-Q2-2025.pdf",
-        "ABUK-Q3-2025.pdf"
+      "symbol": "OLFI",
+      "pdfCount": 10,
+      "files": [
+        {
+          "filename": "OLFI_AAIS_Initiation_2025.03.24.pdf",
+          "chunksExtracted": 42,
+          "chunksSkipped": 21,
+          "chunksEmbedded": 21,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_AlAhly_Mizuho_2025.09.09.pdf",
+          "chunksExtracted": 18,
+          "chunksSkipped": 9,
+          "chunksEmbedded": 9,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Beltone_2025.06.23.pdf",
+          "chunksExtracted": 14,
+          "chunksSkipped": 7,
+          "chunksEmbedded": 7,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_CairoCapitalHolding_2023.pdf",
+          "chunksExtracted": 21,
+          "chunksSkipped": 4,
+          "chunksEmbedded": 17,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Earnings_Release_1H2025.pdf",
+          "chunksExtracted": 14,
+          "chunksSkipped": 7,
+          "chunksEmbedded": 7,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Earnings_Release_1Q2025.pdf",
+          "chunksExtracted": 12,
+          "chunksSkipped": 6,
+          "chunksEmbedded": 6,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Earnings_Release_9M2025.pdf",
+          "chunksExtracted": 12,
+          "chunksSkipped": 5,
+          "chunksEmbedded": 7,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Earnings_Release_FY2024.pdf",
+          "chunksExtracted": 12,
+          "chunksSkipped": 6,
+          "chunksEmbedded": 6,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_Earnings_Release_FY2025.pdf",
+          "chunksExtracted": 13,
+          "chunksSkipped": 5,
+          "chunksEmbedded": 8,
+          "chunksFailed": 0,
+          "status": "full"
+        },
+        {
+          "filename": "OLFI_EFG_2024.pdf",
+          "chunksExtracted": 20,
+          "chunksSkipped": 9,
+          "chunksEmbedded": 11,
+          "chunksFailed": 0,
+          "status": "full"
+        }
       ],
-      "status": "full"
-    },
-    {
-      "symbol": "CIEB",
-      "tableName": "financial_reports_cieb",
-      "vectorCount": 236,
-      "filenames": [
-        "CIEB-Q1-2025-Separate.pdf",
-        "CIEB-Q2-2025-Separate.pdf",
-        "CIEB-Q3-2025-Separate.pdf",
-        "CIEB-Q4-2025-Separate.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "COMI",
-      "tableName": "financial_reports_comi",
-      "vectorCount": 136,
-      "filenames": [
-        "CIB Condensed Financial Statements Standalone March25 ENGLISH.pdf",
-        "CIB Separate Condensed financial statements December 2025 English.pdf",
-        "CIB Separate Condensed financial statements June 2025 English.pdf",
-        "CIB Separate Condensed financial statements September 2025 English.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "EFID",
-      "tableName": "financial_reports_efid",
-      "vectorCount": 43,
-      "filenames": [
-        "2025-q2-earnings-en.pdf",
-        "Edita-1Q2025-Earnings-release-E-vf.pdf",
-        "Edita-3Q2025-Earnings-Release-E-FINAL.pdf",
-        "Edita-4Q2025-Earnings-Release.pdf",
-        "Edita-FY2025-Consolidated.pdf",
-        "Edita-FY2025-Standalone.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "EGAL",
-      "tableName": "financial_reports_egal",
-      "vectorCount": 7,
-      "filenames": [
-        "9 Months -- 2025.pdf",
-        "Annual -- 2025.pdf",
-        "EGAL-Q1.pdf",
-        "Quarter -- 2025.pdf",
-        "Quarter -- 2026.pdf",
-        "Semi-annual -- 2025.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "ETEL",
-      "tableName": "financial_reports_etel",
-      "vectorCount": 14,
-      "filenames": [
-        "Earnings_Release-Q2-2025.pdf",
-        "Earnings_Release-Q3-2025.pdf",
-        "Earnings_Release-Q4-2025.pdf",
-        "Earnings_Releasea-Q1-2025.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "ISPH",
-      "tableName": "financial_reports_isph",
-      "vectorCount": 155,
-      "filenames": [
-        "ISPH-FY2025-Earnings.pdf",
-        "ISPH-Q1-2025-Earnings.pdf",
-        "ISPH-Q1-2025-Standalone.pdf",
-        "ISPH-Q2-2025-Standalone.pdf",
-        "ISPH-Q3-2025-Earnings.pdf",
-        "ISPH-Q3-2025-Standalone.pdf",
-        "ISPH-Q4-2025-Standalone.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "JUFO",
-      "tableName": "financial_reports_jufo",
-      "vectorCount": 136,
-      "filenames": [
-        "JUFO-4Q25-Earnings-Release.pdf",
-        "JUFO-FY2025-Consolidated.pdf",
-        "JUFO-FY2025-Standalone.pdf",
-        "JUFO-Q1-2025.pdf",
-        "JUFO-Q2-2025.pdf",
-        "JUFO-Q3-2025.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "MICH",
-      "tableName": "financial_reports_mich",
-      "vectorCount": 33,
-      "filenames": [
-        "Misr Chemical Industries Annual 2025.pdf",
-        "Misr Chemical Industries First Quarter 2025.pdf",
-        "Misr Chemical Industries second Quarter 2025.pdf",
-        "Misr Chemical Industries Second Quarter 2026.pdf",
-        "Misr Chemical Industries Third Quarter 2025.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "SWDY",
-      "tableName": "financial_reports_swdy",
-      "vectorCount": 40,
-      "filenames": [
-        "Elsewedy-Electric-ER-1Q2025.pdf",
-        "Elsewedy-Electric-ER-2Q2025-E-.pdf",
-        "Elsewedy-Electric-ER-3Q2025-E-.pdf",
-        "Elsewedy-Electric-ER-4Q2025-E.pdf"
-      ],
-      "status": "full"
-    },
-    {
-      "symbol": "ADCI",
-      "tableName": "financial_reports_adci",
-      "vectorCount": 0,
-      "filenames": [],
-      "status": "empty"
+      "totalChunksExtracted": 178,
+      "totalChunksEmbedded": 99,
+      "totalChunksFailed": 0,
+      "totalChunksSkipped": 79,
+      "vectorsInLanceDB": 99,
+      "status": "full",
+      "tableName": "financial_reports_olfi"
     }
   ],
   "summary": {
-    "totalCompanies": 11,
-    "withVectors": 10,
-    "empty": 1,
-    "totalVectors": 852
+    "totalCompanies": 1,
+    "full": 1,
+    "partial": 0,
+    "empty": 0,
+    "error": 0,
+    "totalVectors": 99,
+    "totalChunksExtracted": 178,
+    "totalChunksEmbedded": 99,
+    "totalChunksFailed": 0
   }
 }
