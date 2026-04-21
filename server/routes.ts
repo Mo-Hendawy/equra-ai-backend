@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "node:crypto";
+import * as lancedb from "@lancedb/lancedb";
 import { getCached, setCache, getStaleCache, getCacheEntry } from "./api-cache";
 import { memoryService } from "./memory/memory-service.js";
 import { analyzeStockWithGemini, createFallbackAnalysis, analyzePortfolioWithGemini, deployCapitalWithGemini, compareStocksWithGemini, compareAnalysisNarrative, type StockDataForAI, type PortfolioAnalysisRequest, type DeployCapitalRequest, type CompareStocksRequest } from "./gemini-service";
@@ -2075,6 +2076,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ available: true, ...manifest });
     } catch (e) {
       res.status(500).json({ available: false, error: "Failed to read manifest" });
+    }
+  });
+
+  // ─── RAG Debug / Inspection endpoints ───
+  // Works identically against local and deployed LanceDB. No auth — for ops.
+  const LANCE_DB_PATH = path.join(process.cwd(), "server", "data", "lancedb");
+  const LANCE_EMBED_MODEL = "gemini-embedding-001";
+
+  async function ragEmbed(text: string): Promise<number[]> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${LANCE_EMBED_MODEL}:embedContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: `models/${LANCE_EMBED_MODEL}`,
+          content: { parts: [{ text }] },
+        }),
+      }
+    );
+    if (!resp.ok) throw new Error(`Embed failed ${resp.status}: ${await resp.text()}`);
+    const data: any = await resp.json();
+    return data.embedding?.values ?? [];
+  }
+
+  // List all RAG tables with row counts.
+  //   GET /api/rag/tables
+  app.get("/api/rag/tables", async (_req, res) => {
+    try {
+      const db = await lancedb.connect(LANCE_DB_PATH);
+      const names = await db.tableNames();
+      const tables = [];
+      for (const name of names) {
+        try {
+          const t = await db.openTable(name);
+          const rowCount = await t.countRows();
+          tables.push({ name, rowCount });
+        } catch (e) {
+          tables.push({ name, error: (e as Error).message });
+        }
+      }
+      tables.sort((a, b) => a.name.localeCompare(b.name));
+      res.json({ path: LANCE_DB_PATH, tables });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Sample rows from a RAG table (paginated). Text-only, vectors stripped.
+  //   GET /api/rag/tables/:symbol/sample?limit=20&offset=0&filename=OLFI_...
+  app.get("/api/rag/tables/:symbol/sample", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 200);
+      const offset = Math.max(parseInt(String(req.query.offset ?? "0"), 10), 0);
+      const filename = req.query.filename ? String(req.query.filename) : null;
+      const tableName = `financial_reports_${symbol.toLowerCase()}`;
+
+      const db = await lancedb.connect(LANCE_DB_PATH);
+      const names = await db.tableNames();
+      if (!names.includes(tableName)) {
+        return res.status(404).json({ error: `Table ${tableName} not found`, available: names });
+      }
+      const t = await db.openTable(tableName);
+      const total = await t.countRows();
+
+      let q = t.query().limit(limit + offset);
+      if (filename) {
+        // LanceDB supports simple filter via SQL-like syntax
+        q = t.query().where(`filename = '${filename.replace(/'/g, "''")}'`).limit(limit + offset);
+      }
+      const all = await q.toArray();
+      const rows = all.slice(offset).map((r: any) => ({
+        filename: r.filename,
+        symbol: r.symbol,
+        text: r.text,
+      }));
+      res.json({ table: tableName, totalRows: total, returned: rows.length, offset, limit, rows });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
+  // Vector search against a RAG table.
+  //   GET /api/rag/tables/:symbol/search?q=What%20was%20FY25%20revenue&limit=6
+  app.get("/api/rag/tables/:symbol/search", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const query = String(req.query.q ?? "").trim();
+      const limit = Math.min(parseInt(String(req.query.limit ?? "6"), 10), 50);
+      if (!query) return res.status(400).json({ error: "Missing ?q=" });
+
+      const tableName = `financial_reports_${symbol.toLowerCase()}`;
+      const db = await lancedb.connect(LANCE_DB_PATH);
+      const names = await db.tableNames();
+      if (!names.includes(tableName)) {
+        return res.status(404).json({ error: `Table ${tableName} not found`, available: names });
+      }
+
+      const vec = await ragEmbed(query);
+      const table = await db.openTable(tableName);
+      const hits = await table.search(vec).limit(limit).toArray();
+      const results = hits.map((r: any) => ({
+        filename: r.filename,
+        symbol: r.symbol,
+        distance: typeof r._distance === "number" ? Number(r._distance.toFixed(4)) : null,
+        textSnippet: (r.text ?? "").replace(/\s+/g, " ").slice(0, 400),
+        textLength: (r.text ?? "").length,
+      }));
+      res.json({ table: tableName, query, vectorDim: vec.length, count: results.length, results });
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 

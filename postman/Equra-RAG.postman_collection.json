@@ -1,0 +1,112 @@
+{
+  "info": {
+    "_postman_id": "e8e3a1b0-0f6a-4a2d-a9f3-b7f88e7d1a21",
+    "name": "Equra AI · RAG Debug",
+    "description": "Inspection endpoints for the LanceDB RAG store. Switch between the **Local** and **Railway** environments in the top-right dropdown. No auth required.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Status (manifest summary)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "status"]
+        },
+        "description": "Returns the ingestion manifest: per-company chunk counts, embedding status, vectors in LanceDB."
+      }
+    },
+    {
+      "name": "List tables",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables"]
+        },
+        "description": "Lists every financial_reports_* LanceDB table with live row counts."
+      }
+    },
+    {
+      "name": "Sample rows — OLFI",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables/OLFI/sample?limit=10&offset=0",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables", "OLFI", "sample"],
+          "query": [
+            { "key": "limit", "value": "10" },
+            { "key": "offset", "value": "0" },
+            { "key": "filename", "value": "", "disabled": true, "description": "Optional — filter to a single source PDF." }
+          ]
+        },
+        "description": "Dumps first N rows of the OLFI table. Add the filename query param to filter to one PDF."
+      }
+    },
+    {
+      "name": "Search — OLFI FY2025 revenue",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables/OLFI/search?q=What was OLFI's FY2025 revenue and net profit?&limit=6",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables", "OLFI", "search"],
+          "query": [
+            { "key": "q", "value": "What was OLFI's FY2025 revenue and net profit?" },
+            { "key": "limit", "value": "6" }
+          ]
+        },
+        "description": "Vector search. Embeds the query via Gemini and returns top-K closest chunks with distance scores."
+      }
+    },
+    {
+      "name": "Search — OLFI Beltone target price",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables/OLFI/search?q=Beltone target price and recommendation&limit=6",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables", "OLFI", "search"],
+          "query": [
+            { "key": "q", "value": "Beltone target price and recommendation" },
+            { "key": "limit", "value": "6" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — OLFI dividend policy",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables/OLFI/search?q=dividend policy and payout&limit=6",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables", "OLFI", "search"],
+          "query": [
+            { "key": "q", "value": "dividend policy and payout" },
+            { "key": "limit", "value": "6" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search — COMI (example other company)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/rag/tables/COMI/search?q=net interest margin and loan growth&limit=6",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rag", "tables", "COMI", "search"],
+          "query": [
+            { "key": "q", "value": "net interest margin and loan growth" },
+            { "key": "limit", "value": "6" }
+          ]
+        }
+      }
+    }
+  ]
+}
