@@ -1,101 +1,85 @@
 {
-  "generatedAt": "2026-04-21T23:28:48.265Z",
+  "generatedAt": "2026-04-22T00:26:59.858Z",
   "sourceDir": "C:\\Repos\\Financial-Reports",
   "lancedbPath": "C:\\Repos\\equra-ai-backend\\server\\data\\lancedb",
   "embedModel": "gemini-embedding-001",
   "companies": [
     {
-      "symbol": "OLFI",
-      "pdfCount": 10,
+      "symbol": "MFPC",
+      "pdfCount": 8,
       "files": [
         {
-          "filename": "OLFI_AAIS_Initiation_2025.03.24.pdf",
-          "chunksExtracted": 42,
-          "chunksSkipped": 21,
-          "chunksEmbedded": 21,
+          "filename": "MFPC_Activity_Q1_2025.pdf",
+          "chunksExtracted": 3,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 3,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_AlAhly_Mizuho_2025.09.09.pdf",
-          "chunksExtracted": 18,
-          "chunksSkipped": 9,
-          "chunksEmbedded": 9,
-          "chunksFailed": 0,
-          "status": "full"
-        },
-        {
-          "filename": "OLFI_Beltone_2025.06.23.pdf",
-          "chunksExtracted": 14,
-          "chunksSkipped": 7,
+          "filename": "MFPC_Results_9M_2025.pdf",
+          "chunksExtracted": 10,
+          "chunksSkipped": 3,
           "chunksEmbedded": 7,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_CairoCapitalHolding_2023.pdf",
-          "chunksExtracted": 21,
-          "chunksSkipped": 4,
-          "chunksEmbedded": 17,
+          "filename": "MFPC_Results_H1_2025.pdf",
+          "chunksExtracted": 7,
+          "chunksSkipped": 2,
+          "chunksEmbedded": 5,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_Earnings_Release_1H2025.pdf",
-          "chunksExtracted": 14,
-          "chunksSkipped": 7,
-          "chunksEmbedded": 7,
-          "chunksFailed": 0,
-          "status": "full"
-        },
-        {
-          "filename": "OLFI_Earnings_Release_1Q2025.pdf",
-          "chunksExtracted": 12,
-          "chunksSkipped": 6,
+          "filename": "MFPC_Results_Q1_2025.pdf",
+          "chunksExtracted": 7,
+          "chunksSkipped": 1,
           "chunksEmbedded": 6,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_Earnings_Release_9M2025.pdf",
-          "chunksExtracted": 12,
-          "chunksSkipped": 5,
-          "chunksEmbedded": 7,
+          "filename": "MFPC_Statements_9M_2025.pdf",
+          "chunksExtracted": 60,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 60,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_Earnings_Release_FY2024.pdf",
-          "chunksExtracted": 12,
-          "chunksSkipped": 6,
-          "chunksEmbedded": 6,
+          "filename": "MFPC_Statements_FY_2025.pdf",
+          "chunksExtracted": 55,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 55,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_Earnings_Release_FY2025.pdf",
-          "chunksExtracted": 13,
-          "chunksSkipped": 5,
-          "chunksEmbedded": 8,
+          "filename": "MFPC_Statements_H1_2025.pdf",
+          "chunksExtracted": 67,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 67,
           "chunksFailed": 0,
           "status": "full"
         },
         {
-          "filename": "OLFI_EFG_2024.pdf",
-          "chunksExtracted": 20,
-          "chunksSkipped": 9,
-          "chunksEmbedded": 11,
+          "filename": "MFPC_Statements_Q1_2025.pdf",
+          "chunksExtracted": 67,
+          "chunksSkipped": 0,
+          "chunksEmbedded": 67,
           "chunksFailed": 0,
           "status": "full"
         }
       ],
-      "totalChunksExtracted": 178,
-      "totalChunksEmbedded": 99,
+      "totalChunksExtracted": 276,
+      "totalChunksEmbedded": 270,
       "totalChunksFailed": 0,
-      "totalChunksSkipped": 79,
-      "vectorsInLanceDB": 99,
+      "totalChunksSkipped": 6,
+      "vectorsInLanceDB": 270,
       "status": "full",
-      "tableName": "financial_reports_olfi"
+      "tableName": "financial_reports_mfpc"
     }
   ],
   "summary": {
@@ -104,9 +88,9 @@
     "partial": 0,
     "empty": 0,
     "error": 0,
-    "totalVectors": 99,
-    "totalChunksExtracted": 178,
-    "totalChunksEmbedded": 99,
+    "totalVectors": 270,
+    "totalChunksExtracted": 276,
+    "totalChunksEmbedded": 270,
     "totalChunksFailed": 0
   }
 }

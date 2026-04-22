@@ -1,6 +1,6 @@
 # RAG Ingestion History
 
-**Last run:** 2026-04-21T23:28:48.266Z
+**Last run:** 2026-04-22T00:26:59.860Z
 **Source:** `C:\Repos\Financial-Reports`
 **LanceDB:** `C:\Repos\equra-ai-backend\server\data\lancedb`
 **Embedding model:** gemini-embedding-001
@@ -16,41 +16,39 @@
 | Empty (no vectors stored) | 0 |
 | Error | 0 |
 
-**Total vectors in LanceDB:** 99
-**Total chunks extracted:** 178
-**Total chunks embedded:** 99
+**Total vectors in LanceDB:** 270
+**Total chunks extracted:** 276
+**Total chunks embedded:** 270
 **Total chunks failed (e.g. rate limit):** 0
 
 ---
 
 ## Per-Company Details
 
-### OLFI — ✅ FULL
+### MFPC — ✅ FULL
 
 | Metric | Value |
 |--------|-------|
-| PDF files | 10 |
-| Table name | `financial_reports_olfi` |
-| Vectors in LanceDB | 99 |
-| Chunks extracted | 178 |
-| Chunks embedded | 99 |
+| PDF files | 8 |
+| Table name | `financial_reports_mfpc` |
+| Vectors in LanceDB | 270 |
+| Chunks extracted | 276 |
+| Chunks embedded | 270 |
 | Chunks failed | 0 |
-| Chunks skipped (<50 chars) | 79 |
+| Chunks skipped (<50 chars) | 6 |
 
 #### Per-file breakdown
 
 | File | Extracted | Embedded | Failed | Skipped | Status |
 |------|-----------|----------|--------|---------|--------|
-| OLFI_AAIS_Initiation_2025.03.24.pdf | 42 | 21 | 0 | 21 | ✅ |
-| OLFI_AlAhly_Mizuho_2025.09.09.pdf | 18 | 9 | 0 | 9 | ✅ |
-| OLFI_Beltone_2025.06.23.pdf | 14 | 7 | 0 | 7 | ✅ |
-| OLFI_CairoCapitalHolding_2023.pdf | 21 | 17 | 0 | 4 | ✅ |
-| OLFI_Earnings_Release_1H2025.pdf | 14 | 7 | 0 | 7 | ✅ |
-| OLFI_Earnings_Release_1Q2025.pdf | 12 | 6 | 0 | 6 | ✅ |
-| OLFI_Earnings_Release_9M2025.pdf | 12 | 7 | 0 | 5 | ✅ |
-| OLFI_Earnings_Release_FY2024.pdf | 12 | 6 | 0 | 6 | ✅ |
-| OLFI_Earnings_Release_FY2025.pdf | 13 | 8 | 0 | 5 | ✅ |
-| OLFI_EFG_2024.pdf | 20 | 11 | 0 | 9 | ✅ |
+| MFPC_Activity_Q1_2025.pdf | 3 | 3 | 0 | 0 | ✅ |
+| MFPC_Results_9M_2025.pdf | 10 | 7 | 0 | 3 | ✅ |
+| MFPC_Results_H1_2025.pdf | 7 | 5 | 0 | 2 | ✅ |
+| MFPC_Results_Q1_2025.pdf | 7 | 6 | 0 | 1 | ✅ |
+| MFPC_Statements_9M_2025.pdf | 60 | 60 | 0 | 0 | ✅ |
+| MFPC_Statements_FY_2025.pdf | 55 | 55 | 0 | 0 | ✅ |
+| MFPC_Statements_H1_2025.pdf | 67 | 67 | 0 | 0 | ✅ |
+| MFPC_Statements_Q1_2025.pdf | 67 | 67 | 0 | 0 | ✅ |
 
 ---
 
