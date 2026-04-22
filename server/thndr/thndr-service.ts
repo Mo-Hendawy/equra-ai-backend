@@ -85,6 +85,36 @@ class ThndrService {
       .get(id) as any | undefined;
     return row ? rowToModel(row) : null;
   }
+
+  /**
+   * Debug: list all transactions for a symbol (any status) in chronological
+   * order. Used by the /api/thndr/audit/:symbol endpoint to forensically
+   * trace realized-gain anomalies.
+   */
+  listBySymbol(symbol: string): ThndrTransactionRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM thndr_transactions
+         WHERE resolved_symbol = ? OR UPPER(security_name) LIKE UPPER(?)
+         ORDER BY invoice_date ASC, received_at ASC`
+      )
+      .all(symbol.toUpperCase(), `%${symbol}%`) as any[];
+    return rows.map(rowToModel);
+  }
+
+  /**
+   * Debug: list every row in the table with minimal columns.
+   */
+  listAll(limit = 500): ThndrTransactionRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM thndr_transactions
+         ORDER BY invoice_date ASC, received_at ASC
+         LIMIT ?`
+      )
+      .all(limit) as any[];
+    return rows.map(rowToModel);
+  }
 }
 
 function rowToModel(row: any): ThndrTransactionRow {

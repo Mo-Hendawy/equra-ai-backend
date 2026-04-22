@@ -2218,10 +2218,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Meta strategy is optional — fail silent and proceed.
       }
 
-      // 2. Analyst pass
-      const analystOut = await runSwingAnalyst({ symbol, strategyPrompt });
+      // 2. Analyst pass — propagate specific analyst errors so the client
+      //    can show actionable messages (quota exhausted, bad ticker, etc).
+      let analystOut;
+      try {
+        analystOut = await runSwingAnalyst({ symbol, strategyPrompt });
+      } catch (e) {
+        return res.status(502).json({
+          error: (e as Error).message,
+          stage: "analyst",
+        });
+      }
       if (!analystOut) {
-        return res.status(502).json({ error: "Swing analyst failed (no price data or LLM error)" });
+        return res.status(502).json({
+          error: "Swing analyst returned no recommendation (LLM parse failed)",
+          stage: "analyst",
+        });
       }
 
       // 3. Critic pass (fail-open)
@@ -2686,6 +2698,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e: any) {
       console.error('[routes] /api/thndr/pending/:id/import error:', e);
       return res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  // THNDR: Forensic audit — list every transaction for a symbol + replay
+  // both the buggy and corrected applyToHoldings math so we can identify
+  // which formula produced a specific stored realized gain.
+  app.get('/api/thndr/audit/:symbol', async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase();
+      if (!symbol) return res.status(400).json({ error: 'symbol required' });
+      const { thndrService } = await import('./thndr/thndr-service.js');
+      const rows = thndrService.listBySymbol(symbol);
+
+      // Replay two formulas side-by-side on the row sequence:
+      //   BUGGY (pre-fix):  newAvg = (oldShares*oldAvg + qty*price) / newShares
+      //                     sellProfit = (price - avg) * qty   // fees dropped
+      //   FIXED (post-fix): newAvg = (oldShares*oldAvg + qty*price + fees) / newShares
+      //                     sellProfit = (price - avg) * qty - fees
+      let bShares = 0, bAvg = 0, bRealized = 0;
+      let fShares = 0, fAvg = 0, fRealized = 0;
+      const ledger: any[] = [];
+      for (const r of rows) {
+        const qty = Number(r.quantity) || 0;
+        const price = Number(r.price) || 0;
+        const fees = Number(r.fees) || 0;
+        if (r.transactionType === 'buy') {
+          const bNewShares = bShares + qty;
+          const bNewAvg = bNewShares === 0 ? 0 : (bShares * bAvg + qty * price) / bNewShares;
+          bShares = bNewShares; bAvg = bNewAvg;
+          const fNewShares = fShares + qty;
+          const fNewAvg = fNewShares === 0 ? 0 : (fShares * fAvg + qty * price + fees) / fNewShares;
+          fShares = fNewShares; fAvg = fNewAvg;
+        } else if (r.transactionType === 'sell') {
+          const bProfit = (price - bAvg) * qty;
+          bRealized += bProfit;
+          bShares = Math.max(0, bShares - qty);
+          const fProfit = (price - fAvg) * qty - fees;
+          fRealized += fProfit;
+          fShares = Math.max(0, fShares - qty);
+        }
+        ledger.push({
+          invoiceDate: r.invoiceDate,
+          type: r.transactionType,
+          qty, price, fees,
+          value: r.value, grandTotal: r.grandTotal,
+          buggy: { sharesAfter: bShares, avgAfter: Number(bAvg.toFixed(4)), cumulativeRealized: Number(bRealized.toFixed(2)) },
+          fixed: { sharesAfter: fShares, avgAfter: Number(fAvg.toFixed(4)), cumulativeRealized: Number(fRealized.toFixed(2)) },
+        });
+      }
+
+      res.json({
+        symbol,
+        rowCount: rows.length,
+        summary: {
+          totalBuys: rows.filter(r => r.transactionType === 'buy').length,
+          totalSells: rows.filter(r => r.transactionType === 'sell').length,
+          buggyRealizedGain: Number(bRealized.toFixed(2)),
+          fixedRealizedGain: Number(fRealized.toFixed(2)),
+          delta: Number((bRealized - fRealized).toFixed(2)),
+          currentSharesBuggy: bShares,
+          currentSharesFixed: fShares,
+        },
+        ledger,
+      });
+    } catch (e: any) {
+      console.error('[routes] /api/thndr/audit/:symbol error:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // THNDR: list everything (debug)
+  app.get('/api/thndr/all', async (_req, res) => {
+    try {
+      const { thndrService } = await import('./thndr/thndr-service.js');
+      const rows = thndrService.listAll(500);
+      res.json({ count: rows.length, rows });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
   });
 

@@ -55,12 +55,26 @@ function parseBlock(block: string, invoiceDate: string): ParsedThndrTransaction 
   const isin = /^[A-Z]{2,}[A-Z0-9]{5,}$/.test(symbolCode) ? symbolCode : undefined;
   const transactionType = typeRaw.toLowerCase() as TransactionType;
 
-  // Quantity / Price / Value line — right after "Transaction No.":
-  // "<txnNo> <qty> <price> EGP <value> EGP"
-  // Quantity can have commas (10,000). Prices are decimal.
-  const afterTxnNo = block.substring(block.indexOf(transactionNo) + transactionNo.length);
+  // Quantity / Price / Value:
+  // Prefer the "Total Quantity Average Price Total Cost" aggregate row
+  // because single orders can be filled in multiple executions — the
+  // per-execution rows under "Transaction No." would undercount shares.
+  //
+  // Layout:
+  //   Total Quantity Average Price Total Cost
+  //   10,000 10.38 EGP 103,800.00 EGP
+  const totalIdx = block.search(/Total Quantity\s+Average Price\s+Total Cost/i);
   const qtyPriceValRe = /([\d,]+)\s+([\d.]+)\s+EGP\s+([\d,.]+)\s+EGP/;
-  const qpvMatch = afterTxnNo.match(qtyPriceValRe);
+  let qpvMatch: RegExpMatchArray | null = null;
+  if (totalIdx !== -1) {
+    const afterTotal = block.substring(totalIdx);
+    qpvMatch = afterTotal.match(qtyPriceValRe);
+  }
+  // Fallback to the per-execution row (original behaviour) if no Total row.
+  if (!qpvMatch) {
+    const afterTxnNo = block.substring(block.indexOf(transactionNo) + transactionNo.length);
+    qpvMatch = afterTxnNo.match(qtyPriceValRe);
+  }
   if (!qpvMatch) return null;
   const quantity = parseNum(qpvMatch[1]);
   const price = parseNum(qpvMatch[2]);
