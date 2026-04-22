@@ -17,7 +17,7 @@ const VALID_INVALIDATION_REASONS: InvalidationReason[] = [
   'THESIS_ERROR', 'MACRO_SHOCK', 'DATA_STALE', 'TIMING'
 ];
 
-export type DecisionType = 'stock' | 'portfolio' | 'deploy';
+export type DecisionType = 'stock' | 'portfolio' | 'deploy' | 'swing';
 
 export interface NewDecision {
   symbol: string;

@@ -16,6 +16,9 @@ import { criticAgent } from "./agents/critic-agent.js";
 import { orchestrator } from "./agents/orchestrator.js";
 import type { DataAgentInput, PipelineResult } from "./agents/types.js";
 import { applyConfidenceDiscount, type CriticFeedback } from "./schemas/analysis-schemas.js";
+import { runSwingAnalyst } from "./agents/swing-analyst.js";
+import { runSwingCritic } from "./agents/swing-critic.js";
+import { applySwingConfidenceDiscount } from "./schemas/swing-schemas.js";
 
 const EODHD_API_TOKEN = process.env.EODHD_API_TOKEN || "";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -2192,6 +2195,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: (e as Error).message });
     }
   });
+
+  // ─── Swing-Trade Endpoint ───
+  // Orchestrates analyst → critic → confidence discount → memory persist.
+  //   POST /api/swing/:symbol        (single ticker, full pipeline)
+  //   GET  /api/swing/:symbol        (same, query-safe for browser/Postman)
+  app.get("/api/swing/:symbol", async (req, res) => runSwing(req, res));
+  app.post("/api/swing/:symbol", async (req, res) => runSwing(req, res));
+
+  async function runSwing(req: any, res: any) {
+    const startedAt = Date.now();
+    const symbol = String(req.params.symbol ?? "").toUpperCase();
+    if (!symbol) return res.status(400).json({ error: "Missing symbol" });
+
+    try {
+      // 1. Latest strategy prompt (from meta-agent learning loop, if any)
+      let strategyPrompt: string | null = null;
+      try {
+        const latest = await memoryService.getLatestStrategyPrompt();
+        strategyPrompt = latest?.promptText ?? null;
+      } catch (e) {
+        // Meta strategy is optional — fail silent and proceed.
+      }
+
+      // 2. Analyst pass
+      const analystOut = await runSwingAnalyst({ symbol, strategyPrompt });
+      if (!analystOut) {
+        return res.status(502).json({ error: "Swing analyst failed (no price data or LLM error)" });
+      }
+
+      // 3. Critic pass (fail-open)
+      let critic = null;
+      try {
+        critic = await runSwingCritic({
+          symbol,
+          recommendation: analystOut.recommendation,
+          technicals: analystOut.technicals,
+        });
+      } catch (e) {
+        console.warn(`[swing] ${symbol} critic failed:`, (e as Error).message);
+      }
+
+      // 4. Apply critic confidence discount
+      const adjustedConfidence = applySwingConfidenceDiscount(analystOut.recommendation, critic);
+
+      // 5. Persist decision for the weekly meta-agent learning loop
+      let decisionId: number | null = null;
+      try {
+        const inputsHash = createHash("sha256")
+          .update(JSON.stringify({
+            symbol,
+            price: analystOut.technicals.currentPrice,
+            asOf: analystOut.technicals.asOf,
+            sma20: analystOut.technicals.sma20,
+            sma50: analystOut.technicals.sma50,
+          }))
+          .digest("hex")
+          .slice(0, 32);
+
+        decisionId = await memoryService.saveDecision({
+          symbol,
+          decisionType: "swing",
+          recommendation: analystOut.recommendation.verdict,
+          confidence: adjustedConfidence,
+          reasoning: analystOut.recommendation.reasoning,
+          inputsHash,
+          priceAtRec: analystOut.technicals.currentPrice,
+          fairValue: analystOut.recommendation.targetPrice ?? null,
+          criticWeakness: critic?.weakness ?? null,
+          criticSeverity: critic?.severity ?? null,
+          criticBlocking: critic?.blockingIssues ?? null,
+        });
+      } catch (e) {
+        console.warn(`[swing] ${symbol} memory persist failed:`, (e as Error).message);
+      }
+
+      res.json({
+        symbol,
+        finalVerdict: analystOut.recommendation.verdict,
+        adjustedConfidence,
+        recommendation: analystOut.recommendation,
+        criticFeedback: critic,
+        technicals: analystOut.technicals,
+        ragUsed: analystOut.ragUsed,
+        model: analystOut.model,
+        decisionId,
+        elapsedMs: Date.now() - startedAt,
+      });
+    } catch (e) {
+      console.error(`[swing] ${symbol} error:`, e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  }
 
   // ─── Multi-Provider AI Endpoints ───
 
