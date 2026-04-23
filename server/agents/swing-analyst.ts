@@ -6,6 +6,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { swingRecommendationSchema, type SwingRecommendation } from "../schemas/swing-schemas.js";
 import { getRelevantContext } from "../rag-service.js";
+import { callProvider, isProviderConfigured } from "../ai-providers.js";
 
 const EODHD_API_TOKEN = process.env.EODHD_API_TOKEN || "";
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -104,22 +105,61 @@ export function computeTechnicals(bars: PriceBar[]): Technicals | null {
   };
 }
 
-// ─── Price history fetch ───
+// ─── Price history fetch — with in-process cache (dedup + quota-friendly) ───
+
+interface CacheEntry {
+  bars: PriceBar[];
+  fetchedAt: number;
+}
+const PRICE_CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — price bars don't change intraday much
 
 export async function fetchPriceHistory(symbol: string, days = 300): Promise<PriceBar[]> {
   if (!EODHD_API_TOKEN) {
-    throw new Error("EODHD_API_TOKEN not configured");
+    throw new Error("Price data unavailable: EODHD_API_TOKEN is not set on the server");
   }
+
+  // 1. In-process cache check
+  const cacheKey = `${symbol}:${days}`;
+  const cached = PRICE_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.bars;
+  }
+
   const from = new Date();
   from.setDate(from.getDate() - days);
   const fromStr = from.toISOString().slice(0, 10);
   const url = `${EODHD_BASE_URL}/eod/${symbol}.EGX?api_token=${EODHD_API_TOKEN}&from=${fromStr}&fmt=json&period=d`;
+
   const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  const bodyText = await res.text();
+
   if (!res.ok) {
-    throw new Error(`EODHD history failed ${res.status}`);
+    // EODHD often returns 402/429 with a plaintext reason. Surface it.
+    const bodySnippet = bodyText.slice(0, 160).replace(/\s+/g, " ").trim();
+    // Common failure modes, mapped to user-friendly messages:
+    if (bodySnippet.toLowerCase().includes("exceeded your daily")) {
+      throw new Error(
+        "EODHD daily API quota exhausted. Upgrade the EODHD plan or wait for UTC midnight reset."
+      );
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("EODHD authentication failed — token is invalid or expired");
+    }
+    if (res.status === 404) {
+      throw new Error(`EODHD has no EGX data for ${symbol} (404). Check the ticker is correct.`);
+    }
+    throw new Error(`EODHD history failed ${res.status}: ${bodySnippet}`);
   }
-  const raw = (await res.json()) as any[];
-  return raw
+
+  let raw: any[] = [];
+  try {
+    raw = JSON.parse(bodyText);
+  } catch (e) {
+    throw new Error(`EODHD returned non-JSON response for ${symbol}: ${bodyText.slice(0, 80)}`);
+  }
+
+  const bars = raw
     .map((r) => ({
       date: r.date,
       open: Number(r.open),
@@ -129,6 +169,13 @@ export async function fetchPriceHistory(symbol: string, days = 300): Promise<Pri
       volume: r.volume != null ? Number(r.volume) : null,
     }))
     .filter((b) => isFinite(b.close) && b.close > 0);
+
+  if (bars.length === 0) {
+    throw new Error(`EODHD returned no price bars for ${symbol}.EGX`);
+  }
+
+  PRICE_CACHE.set(cacheKey, { bars, fetchedAt: Date.now() });
+  return bars;
 }
 
 // ─── Prompt construction ───
@@ -261,23 +308,35 @@ export async function runSwingAnalyst(args: {
     strategyPrompt,
   });
 
-  const apiKey = process.env.GEMINI_API_KEY || "";
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY not set");
-  }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: ANALYST_MODEL,
-    generationConfig: { temperature: 0.4, maxOutputTokens: 8192, responseMimeType: "application/json" },
-  });
-
   let rawText = "";
-  try {
-    const result = await model.generateContent(prompt);
-    rawText = result.response.text().trim();
-  } catch (e) {
-    console.error(`[swing-analyst] ${symbol} — Gemini call failed:`, e);
-    return null;
+  let usedModel = "gemini";
+  if (isProviderConfigured("cerebras")) {
+    try {
+      rawText = await callProvider("cerebras", prompt);
+      usedModel = "cerebras/gpt-oss-120b";
+    } catch (e) {
+      console.warn(`[swing-analyst] ${symbol} — Cerebras failed, falling back to Gemini:`, (e as Error).message);
+    }
+  }
+  if (!rawText) {
+    const apiKey = process.env.GEMINI_API_KEY || "";
+    if (!apiKey) {
+      console.error(`[swing-analyst] ${symbol} — no LLM available`);
+      return null;
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const geminiModel = genAI.getGenerativeModel({
+      model: ANALYST_MODEL,
+      generationConfig: { temperature: 0.4, maxOutputTokens: 8192, responseMimeType: "application/json" },
+    });
+    try {
+      const result = await geminiModel.generateContent(prompt);
+      rawText = result.response.text().trim();
+      usedModel = ANALYST_MODEL;
+    } catch (e) {
+      console.error(`[swing-analyst] ${symbol} — Gemini call failed:`, e);
+      return null;
+    }
   }
 
   // Strip any accidental markdown fences
@@ -301,6 +360,6 @@ export async function runSwingAnalyst(args: {
     recommendation: validation.data,
     technicals: tech,
     ragUsed: chunks.length > 0,
-    model: ANALYST_MODEL,
+    model: usedModel,
   };
 }

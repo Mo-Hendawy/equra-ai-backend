@@ -7,6 +7,7 @@ import {
   type SwingCriticFeedback,
 } from "../schemas/swing-schemas.js";
 import type { Technicals } from "./swing-analyst.js";
+import { callProvider, isProviderConfigured } from "../ai-providers.js";
 
 // Pro is quota-gated on free tier — use Flash as primary; Pro as upgrade when paid.
 const CRITIC_MODEL_PRIMARY = "gemini-2.5-flash";
@@ -115,10 +116,16 @@ export async function runSwingCritic(args: {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), CRITIC_TIMEOUT_MS);
 
-  let raw = await callCritic(CRITIC_MODEL_PRIMARY, prompt, controller.signal);
-  if (!raw) {
-    raw = await callCritic(CRITIC_MODEL_FALLBACK, prompt, controller.signal);
+  let raw: string | null = null;
+  if (isProviderConfigured("cerebras") && !controller.signal.aborted) {
+    try {
+      raw = await callProvider("cerebras", prompt);
+    } catch (e) {
+      console.warn(`[swing-critic] Cerebras failed, falling back to Gemini:`, (e as Error).message);
+    }
   }
+  if (!raw) raw = await callCritic(CRITIC_MODEL_PRIMARY, prompt, controller.signal);
+  if (!raw) raw = await callCritic(CRITIC_MODEL_FALLBACK, prompt, controller.signal);
   clearTimeout(timeoutId);
   if (!raw) return null;
 
