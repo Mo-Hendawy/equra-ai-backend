@@ -75,7 +75,7 @@ interface ProviderConfig {
 export const PROVIDERS: Record<ProviderName, Omit<ProviderConfig, "available"> & { name: string; model: string }> = {
   gemini: { name: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
   groq: { name: "Llama 4 Scout (Groq)", model: "meta-llama/llama-4-scout-17b-16e-instruct" },
-  cerebras: { name: "GPT-OSS 120B (Cerebras)", model: "gpt-oss-120b" },
+  cerebras: { name: "Llama 3.1 8B (Cerebras)", model: "llama3.1-8b" },
   "huggingface-qwen": { name: "HuggingFace Qwen 2.5", model: "Qwen/Qwen2.5-72B-Instruct" },
 };
 
